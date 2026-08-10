@@ -1,0 +1,97 @@
+[
+  {
+    "nombre": "🍴 Alimentación",
+    "subcategorias": [
+      "🛒 Supermercado",
+      "🥗 Feria / Mercado",
+      "🍽️ Restaurant",
+      "🌯 Comida al paso",
+      "🥜 Frutos secos",
+      "🌿 Te / Café a granel",
+      "☕ Café",
+      "☕ Cafetería / Heladería",
+      "🍻 Bar",
+      "🛵 Delivery"
+    ]
+  },
+  {
+    "nombre": "🚖 Transporte",
+    "subcategorias": [
+      "🚉 Tren",
+      "🚲 Bicicleta",
+      "🚈 Transporte Público",
+      "🚕 Uber u otro",
+      "⛽ Combustible",
+      "✈️ Avión"
+    ]
+  },
+  {
+    "nombre": "🏠 Hogar",
+    "subcategorias": [
+      "🛍️ Compras hogar",
+      "🌐 Internet",
+      "💧 Agua",
+      "⚡Electricidad",
+      "🔥 Gas"
+    ]
+  },
+  {
+    "nombre": "🧥 Vestimenta",
+    "subcategorias": [
+      "🧥 Ropa",
+      "👟 Calzado",
+      "🧤 Accesorios"
+    ]
+  },
+  {
+    "nombre": "💊 Salud",
+    "subcategorias": [
+      "💊 Suplementos",
+      "🏪 Farmacia",
+      "💇🏻  Cuidado Personal",
+      "🧑🏻‍⚕️ Médico"
+    ]
+  },
+  {
+    "nombre": "🎮 Juegos / Subcripciones / Digital",
+    "subcategorias": [
+      "📱 Telefonía (Plan)",
+      "🕹️ Juego",
+      "💻 Software",
+      "🏦 Banco (comisiones)"
+    ]
+  },
+  {
+    "nombre": "📙 Educación y crecimiento",
+    "subcategorias": [
+      "📚 Libros",
+      "💻 Curso online",
+      "🎓 Universidad",
+      "🎓 Universidad"
+    ]
+  },
+  {
+    "nombre": "🛍️ Compras online",
+    "subcategorias": []
+  },
+  {
+    "nombre": "🐾 Mascota",
+    "subcategorias": []
+  },
+  {
+    "nombre": "🎭 Ocio y cultura (Social)",
+    "subcategorias": [
+      "💸 Salidas sociales",
+      "🏛️ Museo",
+      "🎬 Cine, películas"
+    ]
+  },
+  {
+    "nombre": "⛔ Balance (NO CONSIDERAR)",
+    "subcategorias": []
+  },
+  {
+    "nombre": "🎁 Regalos",
+    "subcategorias": []
+  }
+]

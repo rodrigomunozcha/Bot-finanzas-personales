@@ -1,0 +1,27 @@
+[
+  {
+    "_comentario": "Propuesta inicial para Chile, pensada desde cero y no heredada de ningun respaldo. Ajustala a tus fuentes de ingreso: se agregan y se quitan desde el bot, sin tocar este archivo.",
+    "nombre": "💼 Trabajo",
+    "subcategorias": ["💰 Sueldo", "🧾 Boleta de honorarios", "🎯 Bono o aguinaldo"]
+  },
+  {
+    "nombre": "📈 Inversiones",
+    "subcategorias": ["🏦 Intereses", "📊 Dividendos", "💱 Venta de instrumento"]
+  },
+  {
+    "nombre": "🎁 Recibido",
+    "subcategorias": ["🎁 Regalo", "👨‍👩‍👦 Aporte familiar"]
+  },
+  {
+    "nombre": "🏷️ Venta de cosas",
+    "subcategorias": []
+  },
+  {
+    "nombre": "🏛️ Beneficio estatal",
+    "subcategorias": []
+  },
+  {
+    "nombre": "❓ Otro ingreso",
+    "subcategorias": []
+  }
+]

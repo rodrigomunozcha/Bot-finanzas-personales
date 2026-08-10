@@ -1,0 +1,23 @@
+# Respaldos y exportaciones con datos financieros reales.
+# El proyecto los lee, pero no tienen por que quedar versionados.
+muestras/
+*.mmbak
+*.xlsx
+*.db
+*.sqlite3
+datos/movimientos.csv
+
+# Credenciales: el token del bot y los identificadores nunca van al repositorio.
+.clasprc.json
+config.local.json
+.env
+
+node_modules/
+.DS_Store
+
+# Identificador del proyecto de Apps Script: apunta a la cuenta personal.
+.clasp.json
+
+# Compilados de Python
+__pycache__/
+*.pyc

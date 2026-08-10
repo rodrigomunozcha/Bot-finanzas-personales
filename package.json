@@ -1,0 +1,7 @@
+{
+  "name": "finanzas",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js && python3 tests/test_respaldar.py"
+  }
+}
