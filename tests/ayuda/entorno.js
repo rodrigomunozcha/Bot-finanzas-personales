@@ -14,7 +14,7 @@ const vm = require('node:vm');
 
 const ORDEN = [
   'datos.gen.js', 'parsers.js', 'tarjeta.js', 'clasificador.js',
-  'telegram.js', 'almacen.js', 'conversacion.js', 'principal.js', 'diagnostico.js',
+  'telegram.js', 'almacen.js', 'conversacion.js', 'informes.js', 'principal.js', 'diagnostico.js',
 ];
 
 /**

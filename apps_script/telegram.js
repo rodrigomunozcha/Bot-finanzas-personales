@@ -32,6 +32,33 @@ function tgLlamar(metodo, cuerpo) {
   return datos;
 }
 
+
+// --- Menu de comandos ------------------------------------------------------
+
+/**
+ * Los comandos que Telegram muestra en el menu.
+ *
+ * Sin esto hay que acordarse de memoria de que existe /pendientes o /olvidar, y
+ * un comando que no se recuerda no existe. Registrandolos, al escribir "/" en
+ * el chat aparece la lista con su descripcion, y ademas Telegram pone un boton
+ * de menu al lado del campo de texto.
+ *
+ * Se registra una sola vez, desde instalar().
+ */
+var COMANDOS = [
+  { command: 'gasto', description: 'Anotar un gasto: escribe 12000 efectivo almuerzo' },
+  { command: 'pendientes', description: 'Gastos sin categoría y compras en dólares' },
+  { command: 'semana', description: 'Resumen de los últimos 7 días' },
+  { command: 'mes', description: 'Resumen del mes en curso' },
+  { command: 'olvidar', description: 'Olvidar la categoría de un comercio' },
+  { command: 'respaldado', description: 'Avisar que ya respaldaste' },
+  { command: 'reanudar', description: 'Reactivar los mensajes si el bot se frenó' },
+];
+
+function tgRegistrarComandos() {
+  return tgLlamar('setMyCommands', { commands: COMANDOS });
+}
+
 // --- Freno de emergencia ---------------------------------------------------
 
 /**

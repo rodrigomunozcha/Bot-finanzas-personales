@@ -254,6 +254,19 @@ function contarSinClasificar() {
   return movimientosSinClasificar().length;
 }
 
+/** Todos los movimientos de la hoja, en una sola lectura. */
+function todosLosMovimientos() {
+  var h = hoja(HOJA_MOVIMIENTOS);
+  if (h.getLastRow() < 2) return [];
+
+  return h.getRange(2, 1, h.getLastRow() - 1, COLUMNAS.length).getValues()
+    .map(function (f) {
+      var mov = {};
+      COLUMNAS.forEach(function (col, i) { mov[col] = f[i]; });
+      return mov;
+    });
+}
+
 /** Compras en moneda extranjera que todavia no tienen su valor en pesos. */
 function comprasPendientesConversion() {
   var h = hoja(HOJA_MOVIMIENTOS);

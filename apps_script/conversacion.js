@@ -323,6 +323,85 @@ function notaPendiente(propiedades) {
   return partes[0];
 }
 
+
+/**
+ * Reconoce un gasto escrito a mano: un monto y despues la descripcion.
+ *
+ *   "12000 efectivo almuerzo"  -> $12.000 en efectivo, "almuerzo"
+ *   "3.500 micro"              -> $3.500, "micro"
+ *
+ * Se exige que empiece con el monto para no confundir un gasto con cualquier
+ * frase suelta. Los puntos de miles se aceptan porque asi se escriben los pesos
+ * en Chile.
+ */
+function leerGastoEscrito(texto) {
+  var m = /^\$?\s*([\d.]{2,})\s*(.*)$/.exec(String(texto).trim());
+  if (!m) return null;
+
+  var monto = normalizarMonto(m[1], 'CLP');
+  if (!monto || monto < 1) return null;
+
+  var resto = m[2].trim();
+  var esEfectivo = /efectivo/i.test(resto);
+  var descripcion = resto.replace(/efectivo/ig, '').replace(/\s{2,}/g, ' ').trim();
+
+  return {
+    monto: monto,
+    medioPago: esEfectivo ? 'efectivo' : 'a mano',
+    descripcion: descripcion,
+  };
+}
+
+/** Registra el gasto escrito y abre la conversacion para clasificarlo. */
+function registrarGastoEscrito(datos) {
+  var comercio = datos.descripcion || (datos.medioPago === 'efectivo'
+    ? 'Efectivo' : 'Gasto a mano');
+
+  var ahora = new Date();
+  var id = nuevoId();
+  var mov = {
+    id: id,
+    fechaHora: ahora.getFullYear() + '-' + dos(ahora.getMonth() + 1) + '-' +
+      dos(ahora.getDate()) + 'T' + dos(ahora.getHours()) + ':' + dos(ahora.getMinutes()),
+    tipo: 'gasto',
+    comercio: comercio,
+    monto: datos.monto,
+    moneda: 'CLP',
+    montoClp: datos.monto,
+    medioPago: datos.medioPago,
+    estado: ESTADOS.ESPERANDO_CATEGORIA,
+    correoId: '',
+  };
+
+  // Un gasto a mano tambien aprende: si siempre anotas "micro" como Transporte,
+  // a la tercera deja de preguntarte igual que con los comercios del banco.
+  var propuesta = proponerClasificacion(comercio, cargarAprendizaje());
+  var texto, teclado;
+
+  if (propuesta && propuesta.automatico) {
+    mov.categoria = propuesta.categoria;
+    mov.subcategoria = propuesta.subcategoria;
+    mov.estado = ESTADOS.CERRADO;
+    texto = '✅ ' + encabezado(mov) + '\n' +
+      rutaCategoria(propuesta.categoria, propuesta.subcategoria);
+    teclado = tecladoCerrado(id);
+  } else if (propuesta) {
+    mov.categoria = propuesta.categoria;
+    mov.subcategoria = propuesta.subcategoria;
+    texto = encabezado(mov) + '\n\n' +
+      rutaCategoria(propuesta.categoria, propuesta.subcategoria) + '?';
+    teclado = tecladoConfirmar(id);
+  } else {
+    texto = encabezado(mov) + '\n\n¿Qué categoría?';
+    teclado = tecladoCategorias(id, CATEGORIAS_GASTO);
+  }
+
+  mov.mensajeId = tgEnviar(texto, teclado);
+  registrarMovimiento(mov);
+  marcarConversacion();
+  return id;
+}
+
 /** Procesa un mensaje de texto: notas, comandos y ayuda. */
 function manejarTexto(texto) {
   var propiedades = PropertiesService.getScriptProperties();
@@ -361,6 +440,25 @@ function manejarTexto(texto) {
     // quedaria bloqueada por el freno que se acaba de pedir levantar.
     tgReanudar();
     tgEnviar('▶️ Freno levantado. Vuelvo a avisarte cuando llegue una compra nueva.');
+    return;
+  }
+
+  // Gasto escrito a mano: "12000 efectivo almuerzo". Se da por hecho que es un
+  // gasto, porque es lo unico que uno anota a mano: los ingresos y las
+  // transferencias llegan por correo.
+  var aMano = leerGastoEscrito(texto);
+  if (aMano) return registrarGastoEscrito(aMano);
+
+  if (cmd && cmd.nombre === 'semana') return informeSemana();
+  if (cmd && cmd.nombre === 'mes') return informeMes();
+
+  if (cmd && cmd.nombre === 'gasto') {
+    tgEnviar('Para anotar un gasto escríbeme el monto y en qué fue.\n\n' +
+      'Por ejemplo:\n' +
+      '<code>12000 efectivo almuerzo</code>\n' +
+      '<code>3500 efectivo micro</code>\n\n' +
+      'La palabra <b>efectivo</b> marca que fue en efectivo. Si no la pones, ' +
+      'igual se anota y después eliges la categoría con los botones.');
     return;
   }
 

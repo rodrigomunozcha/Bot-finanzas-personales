@@ -451,9 +451,15 @@ function instalar() {
   if (existentes.indexOf('latidoDiario') < 0) {
     ScriptApp.newTrigger('latidoDiario').timeBased().atHour(20).everyDays(1).create();
   }
+  if (existentes.indexOf('informeSemanalAutomatico') < 0) {
+    ScriptApp.newTrigger('informeSemanalAutomatico').timeBased()
+      .onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(19).create();
+  }
   if (!propiedades.getProperty('INSTALADO_EN')) {
     propiedades.setProperty('INSTALADO_EN', String(Date.now()));
   }
+
+  tgRegistrarComandos();
 
   // Se reporta con reportar() y no con console.log por lo mismo que en
   // mostrarMiChatId: el registro de ejecucion cuesta encontrarlo y estos datos
@@ -466,7 +472,8 @@ function instalar() {
     'Activador: revisarCorreo cada 5 minutos',
     'Chat id guardado: ' + (propiedades.getProperty('TELEGRAM_CHAT_ID') || 'FALTA (paso 7)'),
     '',
-    'Activadores: correo cada 5 min, Telegram cada minuto, revisión a las 20:00.',
+    'Activadores: correo cada 5 min, Telegram cada minuto,',
+    'revisión diaria a las 20:00, informe los domingos a las 19:00.',
   ]);
 }
 
