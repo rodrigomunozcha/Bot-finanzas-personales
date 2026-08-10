@@ -155,8 +155,22 @@ termina. El bot se encarga de recordarte cuando pasa una semana.
 - [ ] Presupuesto por categoría, para que las cifras tengan veredicto
 - [ ] Formatos de correo que faltan: transferencia enviada, giro, anulación
 - [ ] Poda de subcategorías que no aplican en Chile
-- [ ] Dashboard (Looker Studio primero, HTML local después)
+- [x] Gráficos en los informes, enviados por Telegram
 - [ ] Narración con Ollama, cuando haya meses de datos
+
+### Sobre Looker Studio
+
+Se probó y se descartó como panel principal, aunque quedó conectado a la hoja
+(no consume nada mientras nadie lo abra, así que se dejó ahí).
+
+La razón de fondo no fue la comodidad sino la coherencia: los informes del bot
+aplican reglas que un panel externo no conoce. Las compras en dólares sin pagar
+no suman al total, los giros no son gasto y los reembolsos no son ingreso.
+Looker suma las columnas que le pongas, así que habría dado otro número para el
+mismo mes. Dos totales distintos para lo mismo es peor que no tener panel.
+
+Sirve para hurgar en una pregunta puntual cuando haya meses de datos, no para
+el seguimiento semanal.
 
 ### Formatos de correo que faltan
 

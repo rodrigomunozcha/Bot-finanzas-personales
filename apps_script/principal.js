@@ -487,12 +487,15 @@ function instalar() {
     '',
     'Tu planilla: ' + SpreadsheetApp.openById(propiedades.getProperty('HOJA_ID')).getUrl(),
     'Etiquetas de Gmail: ' + ETIQUETA_PENDIENTE + ' y ' + ETIQUETA_PROCESADO,
-    'Activador: revisarCorreo cada 5 minutos',
     'Chat id guardado: ' + (propiedades.getProperty('TELEGRAM_CHAT_ID') || 'FALTA (paso 7)'),
     '',
-    'Activadores: correo cada 5 min, Telegram cada minuto,',
-    'revisión diaria a las 20:00, informe los domingos a las 19:00.',
-  ]);
+    'Activadores (leídos del proyecto, no una lista escrita a mano):',
+  ].concat(ScriptApp.getProjectTriggers().map(function (t) {
+    return '  ' + t.getHandlerFunction();
+  })).concat([
+    '',
+    'Menú de comandos registrado en Telegram.',
+  ]));
 }
 
 function crearHoja(libro, nombre, encabezados) {
