@@ -304,3 +304,56 @@ test('/ayuda explica cómo anotar antes que la lista de comandos', () => {
   assert.match(e.ultimoTexto(), /34000 efectivo/);
   assert.match(e.ultimoTexto(), /no las anotas tú/);
 });
+
+// --- Detalle del informe ---------------------------------------------------
+
+// Un total no dice de dónde sale. Para decidir algo hay que ver los montos.
+test('el informe lista los gastos uno por uno, agrupados por día', () => {
+  const e = crearEntorno();
+  const r = e.contexto.calcularResumen([
+    gasto('JUMBO CENTRAL', 12500, hoy()),
+    gasto('COPEC', 30000, hoy(), '🚖 Transporte'),
+    gasto('CAFETERIA', 4350, haceDias(2)),
+  ], haceDias(6), hoy());
+
+  const texto = e.contexto.redactarInforme('Últimos 7 días', r, null);
+
+  assert.match(texto, /<b>Detalle<\/b>/);
+  assert.match(texto, /\$11\.680  JUMBO CENTRAL/);
+  assert.match(texto, /\$30\.000  COPEC/);
+  assert.match(texto, /\$4\.350  CAFETERIA/);
+  assert.match(texto, /🚖 Transporte/);
+});
+
+test('el detalle va del gasto más nuevo al más viejo', () => {
+  const e = crearEntorno();
+  const r = e.contexto.calcularResumen([
+    gasto('VIEJO', 1000, haceDias(5)),
+    gasto('NUEVO', 2000, hoy()),
+  ], haceDias(6), hoy());
+
+  assert.equal(r.gastos[0].comercio, 'NUEVO');
+  assert.equal(r.gastos[1].comercio, 'VIEJO');
+});
+
+test('un gasto sin categoría se marca en el detalle', () => {
+  const e = crearEntorno();
+  const r = e.contexto.calcularResumen(
+    [gasto('MISTERIO', 5000, hoy(), '')], haceDias(6), hoy());
+
+  assert.match(e.contexto.redactarInforme('Semana', r, null), /sin categoría/);
+});
+
+// Telegram rechaza los mensajes de más de 4096 caracteres: un mes con muchos
+// gastos reventaría el informe entero si se listaran todos.
+test('con muchos gastos el detalle se corta y dice cuántos faltan', () => {
+  const e = crearEntorno();
+  const muchos = [];
+  for (let i = 0; i < 40; i++) muchos.push(gasto('COMERCIO ' + i, 1000 + i, hoy()));
+
+  const r = e.contexto.calcularResumen(muchos, haceDias(6), hoy());
+  const texto = e.contexto.redactarInforme('Mes', r, null);
+
+  assert.match(texto, /… y 15 más/);
+  assert.ok(texto.length < 4096, `el mensaje mide ${texto.length}`);
+});

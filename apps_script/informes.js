@@ -50,6 +50,7 @@ function calcularResumen(movimientos, desde, hasta) {
   var porCategoria = {};
   var porComercio = {};
   var montos = [];
+  var incluidos = [];
   var sinConvertir = 0;
   var sinClasificar = 0;
 
@@ -71,6 +72,7 @@ function calcularResumen(movimientos, desde, hasta) {
     total += clp;
     cuenta++;
     montos.push(clp);
+    incluidos.push(m);
 
     var cat = m.categoria || 'Sin categoría';
     porCategoria[cat] = (porCategoria[cat] || 0) + clp;
@@ -88,6 +90,12 @@ function calcularResumen(movimientos, desde, hasta) {
     cuenta: cuenta,
     promedio: cuenta ? total / cuenta : 0,
     categorias: ordenarPorTotal(porCategoria),
+    // Los gastos que entraron al total, del mas nuevo al mas viejo. Ver los
+    // montos sueltos dice mas que el total: un promedio esconde de donde sale.
+    gastos: incluidos.sort(function (a, b) {
+      return String(diaDe(b.fechaHora) + b.fechaHora).localeCompare(
+        String(diaDe(a.fechaHora) + a.fechaHora));
+    }),
     comercios: Object.keys(porComercio).map(function (nombre) {
       return {
         nombre: nombre,
@@ -181,6 +189,9 @@ function redactarInforme(titulo, resumen, previo) {
       '  (' + parte + '%)' + flecha(variacion(c.total, previoPorCategoria[c.nombre])));
   });
 
+  lineas.push('');
+  lineas.push(detallePorDia(resumen.gastos));
+
   var repetidos = resumen.comercios.filter(function (c) { return c.veces > 1; });
   if (repetidos.length) {
     lineas.push('');
@@ -215,6 +226,37 @@ function redactarInforme(titulo, resumen, previo) {
     lineas.push('<i>Ojo: ' + avisos.join(' · ') + '</i>');
   }
 
+  return lineas.join('\n');
+}
+
+/**
+ * Lista los gastos agrupados por dia.
+ *
+ * Un total no dice de donde sale, y para decidir algo hay que ver los montos
+ * uno por uno. Se corta en 25 porque Telegram no acepta mensajes de mas de
+ * cuatro mil caracteres, y el resto se mira en la planilla.
+ */
+var MAXIMO_EN_DETALLE = 25;
+
+function detallePorDia(gastos) {
+  var lineas = ['<b>Detalle</b>'];
+  var diaActual = '';
+
+  gastos.slice(0, MAXIMO_EN_DETALLE).forEach(function (m) {
+    var dia = diaDe(m.fechaHora);
+    if (dia !== diaActual) {
+      diaActual = dia;
+      lineas.push('<i>' + formatearFecha(dia) + '</i>');
+    }
+    lineas.push('  ' + formatearMonto(Number(m.montoClp), 'CLP') + '  ' +
+      tgEscapar(m.comercio) +
+      (m.categoria ? '  <i>' + m.categoria + '</i>' : '  <i>sin categoría</i>'));
+  });
+
+  if (gastos.length > MAXIMO_EN_DETALLE) {
+    lineas.push('<i>… y ' + (gastos.length - MAXIMO_EN_DETALLE) +
+      ' más. Están todos en la planilla, con /datos.</i>');
+  }
   return lineas.join('\n');
 }
 

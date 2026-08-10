@@ -215,6 +215,28 @@ function mostrarMiChatId() {
 }
 
 /**
+ * Registra en Telegram la lista de comandos del menu.
+ *
+ * Existe suelta para no tener que correr instalar() entero cada vez que cambia
+ * un comando. Telegram guarda la lista en el telefono, asi que despues de
+ * correrla conviene cerrar y volver a abrir el chat.
+ */
+function actualizarMenu() {
+  var r = tgRegistrarComandos();
+  reportar([
+    r.ok ? 'Menú actualizado en Telegram.' : 'Falló: ' + r.description,
+    '',
+    'Comandos registrados:',
+  ].concat(COMANDOS.map(function (c) {
+    return '  /' + c.command + '  ' + c.description;
+  })).concat([
+    '',
+    'Si en el teléfono sigues viendo el menú viejo, cierra el chat del bot y',
+    'vuelve a abrirlo: Telegram guarda la lista y tarda en refrescarla.',
+  ]));
+}
+
+/**
  * Levanta el freno de emergencia desde el editor.
  * Sirve si el bot quedo mudo y por alguna razon tampoco responde a /reanudar.
  */
