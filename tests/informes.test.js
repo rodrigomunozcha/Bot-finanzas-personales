@@ -198,3 +198,109 @@ test('un texto que no empieza con monto no se confunde con un gasto', () => {
     assert.equal(e.contexto.leerGastoEscrito(texto), null, texto);
   }
 });
+
+// --- Efectivo y giros ------------------------------------------------------
+
+test('"34000 efectivo" sin descripción también funciona', () => {
+  const e = crearEntorno();
+  e.contexto.manejarTexto('34000 efectivo');
+
+  const mov = e.movimiento();
+  assert.equal(mov.monto, 34000);
+  assert.equal(mov.medioPago, 'efectivo');
+  assert.equal(mov.comercio, 'Efectivo');
+  assert.match(e.ultimoTexto(), /¿Qué categoría\?/);
+});
+
+// Un giro no es gasto: la plata sigue siendo tuya, solo cambió de lugar.
+test('un giro no cuenta como gasto en los informes', () => {
+  const e = crearEntorno();
+  e.contexto.manejarTexto('50000 giro');
+
+  const mov = e.movimiento();
+  assert.equal(mov.tipo, 'giro');
+  assert.equal(mov.estado, 'interno');
+
+  const r = e.contexto.calcularResumen([mov], haceDias(6), hoy());
+  assert.equal(r.total, 0, 'el giro no puede sumar al gasto del período');
+});
+
+test('al girar recuerda que hay que anotar en qué se va', () => {
+  const e = crearEntorno();
+  e.contexto.manejarTexto('50000 giro');
+
+  assert.match(e.ultimoTexto(), /No lo cuento como gasto/);
+  assert.match(e.ultimoTexto(), /12000 efectivo/);
+  assert.match(e.ultimoTexto(), /\$50\.000<\/b> en efectivo sin anotar/);
+});
+
+test('el saldo de efectivo es lo girado menos lo anotado', () => {
+  const e = crearEntorno();
+  e.contexto.manejarTexto('50000 giro');
+  e.contexto.manejarTexto('12000 efectivo almuerzo');
+  e.apretar('🍴 Alimentación');
+  e.apretar('Guardar sin subcategoría');
+
+  const saldo = e.contexto.calcularEfectivo();
+  assert.equal(saldo.girado, 50000);
+  assert.equal(saldo.gastado, 12000);
+  assert.equal(saldo.disponible, 38000);
+});
+
+test('/efectivo explica el hueco en vez de solo mostrar un número', () => {
+  const e = crearEntorno();
+  e.contexto.manejarTexto('50000 giro');
+  e.contexto.manejarTexto('/efectivo');
+
+  assert.match(e.ultimoTexto(), /Sin explicar: \$50\.000/);
+  assert.match(e.ultimoTexto(), /todavía no dijiste en qué se fue/);
+});
+
+test('sin giros ni efectivo, /efectivo enseña cómo se usa', () => {
+  const e = crearEntorno();
+  e.contexto.manejarTexto('/efectivo');
+
+  assert.match(e.ultimoTexto(), /50000 giro/);
+  assert.match(e.ultimoTexto(), /12000 efectivo/);
+});
+
+test('el latido avisa cuando queda mucho efectivo sin explicar', () => {
+  const e = crearEntorno();
+  e.propiedades.INSTALADO_EN = String(Date.now());
+  e.contexto.manejarTexto('50000 giro');
+
+  e.contexto.latidoDiario();
+  assert.match(e.ultimoTexto(), /\$50\.000<\/b> en efectivo sin explicar/);
+});
+
+// --- Comandos nuevos -------------------------------------------------------
+
+test('/ultimos muestra los gastos con botones para corregirlos', () => {
+  const e = crearEntorno();
+  e.contexto.manejarTexto('12000 efectivo almuerzo');
+  e.apretar('🍴 Alimentación');
+  e.apretar('Guardar sin subcategoría');
+
+  e.contexto.manejarTexto('/ultimos');
+
+  assert.match(e.ultimoTexto(), /almuerzo/);
+  const botones = (e.ultimoTeclado() || []).flat().map((b) => b.text);
+  assert.ok(botones.some((t) => t.includes('Cambiar categoría')));
+});
+
+test('/datos da el enlace a la planilla y cómo respaldarla', () => {
+  const e = crearEntorno();
+  e.contexto.manejarTexto('/datos');
+
+  assert.match(e.ultimoTexto(), /docs\.google\.com\/spreadsheets/);
+  assert.match(e.ultimoTexto(), /respaldar\.py/);
+  assert.match(e.ultimoTexto(), /finanzas\.db/);
+});
+
+test('/ayuda explica cómo anotar antes que la lista de comandos', () => {
+  const e = crearEntorno();
+  e.contexto.manejarTexto('/ayuda');
+
+  assert.match(e.ultimoTexto(), /34000 efectivo/);
+  assert.match(e.ultimoTexto(), /no las anotas tú/);
+});

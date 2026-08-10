@@ -95,3 +95,60 @@ test('un correo desconocido no se inventa: devuelve null', () => {
   assert.equal(p.leerCorreo('Tu estado de cuenta está disponible', 'Ingresa a la app.'), null);
   assert.equal(p.leerCorreo('Cargo en cuenta', 'Texto que no calza con nada.'), null);
 });
+
+// El banco manda el mismo correo con la tabla aplanada de dos formas. Con la
+// segunda, el lector anterior fallaba entero y la transferencia se perdía.
+// Todos los datos de abajo son inventados.
+const TRANSFERENCIA_ETIQUETADA = {
+  asunto: 'Aviso de transferencia de fondos',
+  cuerpo: `Comprobante de transferencia electrónica de fondos
+Estimado(a): Nombre Apellido
+Te informamos que nuestro(a) cliente Jessica Veronica Perez ha efectuado una transferencia de fondos a tu cuenta con el siguiente detalle:
+Datos de cuenta
+Fecha 	01/08/2026
+Asunto 	Maleta y taxi
+Datos de destinatario
+Nombre y Apellido 	Nombre Apellido
+Rut 	12345678-9
+Email 	alguien@example.com
+Banco 	Banco Chile/Edwards
+Cuenta destino 	Cuenta Corriente
+00-000-00000-00
+Monto 	$185.000
+Número de comprobante 	TEFMBCO0000000000000000000000
+
+Fecha y Hora:
+
+sábado 01 de agosto de 2026 08:13`,
+};
+
+test('lee la transferencia con la tabla etiquetada valor por valor', () => {
+  const r = p.leerCorreo(TRANSFERENCIA_ETIQUETADA.asunto, TRANSFERENCIA_ETIQUETADA.cuerpo);
+  assert.ok(r, 'no reconoció el correo');
+  assert.equal(r.tipo, 'entrada');
+  assert.equal(r.monto, 185000);
+  assert.equal(r.remitente, 'Jessica');
+  assert.equal(r.glosa, 'Maleta y taxi');
+  assert.equal(r.fechaHora, '2026-08-01');
+});
+
+test('el monto se lee aunque después venga el número de comprobante', () => {
+  const r = p.leerCorreo(TRANSFERENCIA_ETIQUETADA.asunto, TRANSFERENCIA_ETIQUETADA.cuerpo);
+  assert.equal(r.monto, 185000, 'anclar el monto al final rompía este formato');
+});
+
+test('de la tabla etiquetada tampoco se extrae ningún dato identificatorio', () => {
+  const r = p.leerCorreo(TRANSFERENCIA_ETIQUETADA.asunto, TRANSFERENCIA_ETIQUETADA.cuerpo);
+  const serializado = JSON.stringify(r);
+  for (const dato of ['12345678-9', 'alguien@example.com', '00-000-00000-00',
+    'TEFMBCO0000000000000000000000', 'Perez']) {
+    assert.equal(serializado.includes(dato), false, `se filtró: ${dato}`);
+  }
+});
+
+test('el número de comprobante se tacha al guardar un correo no entendido', () => {
+  const censurado = p.censurarDatosPersonales(
+    'Número de comprobante TEFMBCO0000000000000000000000 y monto $185.000');
+  assert.equal(censurado.includes('TEFMBCO0000000000000000000000'), false);
+  assert.match(censurado, /\$185\.000/);
+});

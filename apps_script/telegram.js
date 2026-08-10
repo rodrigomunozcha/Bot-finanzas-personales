@@ -46,13 +46,13 @@ function tgLlamar(metodo, cuerpo) {
  * Se registra una sola vez, desde instalar().
  */
 var COMANDOS = [
-  { command: 'gasto', description: 'Anotar un gasto: escribe 12000 efectivo almuerzo' },
-  { command: 'pendientes', description: 'Gastos sin categoría y compras en dólares' },
-  { command: 'semana', description: 'Resumen de los últimos 7 días' },
-  { command: 'mes', description: 'Resumen del mes en curso' },
-  { command: 'olvidar', description: 'Olvidar la categoría de un comercio' },
-  { command: 'respaldado', description: 'Avisar que ya respaldaste' },
-  { command: 'reanudar', description: 'Reactivar los mensajes si el bot se frenó' },
+  { command: 'semana', description: '📊 Cuánto gasté en los últimos 7 días' },
+  { command: 'mes', description: '📊 Cuánto llevo gastado este mes' },
+  { command: 'efectivo', description: '💵 Cuánto efectivo me queda sin anotar' },
+  { command: 'ultimos', description: '✏️ Ver y corregir mis últimos gastos' },
+  { command: 'pendientes', description: '⚠️ Qué me falta clasificar' },
+  { command: 'datos', description: '📁 Abrir mi planilla y respaldarla' },
+  { command: 'ayuda', description: '❓ Cómo anotar un gasto y qué más puedo hacer' },
 ];
 
 function tgRegistrarComandos() {

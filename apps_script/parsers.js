@@ -129,8 +129,18 @@ function leerCompra(asunto, cuerpo) {
  * El monto queda al final del cuerpo, despues de la palabra "Monto".
  */
 var RE_TRANSFERENCIA_REMITENTE = /cliente\s+(.+?)\s+ha efectuado una transferencia/i;
-var RE_TRANSFERENCIA_DETALLE = /Fecha\s+Asunto\s+(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+Datos de destinatario/i;
-var RE_TRANSFERENCIA_MONTO = /Monto\s*(US\$|USD|EUR|€|\$)\s*([\d.,]+)\s*$/i;
+
+// El banco manda el mismo correo con la tabla aplanada de dos formas distintas,
+// segun como se aplaste el HTML:
+//   A) "Fecha Asunto 01/08/2026 Maleta y taxi"   (encabezados y luego valores)
+//   B) "Fecha 01/08/2026 Asunto Maleta y taxi"   (cada valor tras su etiqueta)
+// Hay que reconocer las dos o la mitad de las transferencias se pierde.
+var RE_DETALLE_ETIQUETADO = /Fecha\s+(\d{2}\/\d{2}\/\d{4})\s+Asunto\s+(.+?)\s+(?:Datos de destinatario|Nombre y Apellido|Monto)/i;
+var RE_DETALLE_EN_TABLA = /Fecha\s+Asunto\s+(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+(?:Datos de destinatario|Nombre y Apellido|Monto)/i;
+
+// El monto ya no se ancla al final del texto: despues puede venir el numero de
+// comprobante y la fecha larga. Anclarlo hacia que el lector fallara entero.
+var RE_TRANSFERENCIA_MONTO = /\bMonto\s*(US\$|USD|EUR|€|\$)\s*([\d.,]+)/i;
 
 function leerTransferenciaRecibida(asunto, cuerpo) {
   if (!ASUNTOS.TRANSFERENCIA_RECIBIDA.test(asunto)) return null;
@@ -144,7 +154,7 @@ function leerTransferenciaRecibida(asunto, cuerpo) {
   if (monto === null) return null;
 
   var mRemitente = RE_TRANSFERENCIA_REMITENTE.exec(texto);
-  var mDetalle = RE_TRANSFERENCIA_DETALLE.exec(texto);
+  var mDetalle = RE_DETALLE_ETIQUETADO.exec(texto) || RE_DETALLE_EN_TABLA.exec(texto);
 
   return {
     // Se registra como "entrada" y no como "ingreso" a proposito: todavia no
@@ -187,6 +197,8 @@ function censurarDatosPersonales(texto) {
     // RUT con o sin puntos: 12.345.678-9 y 12345678-9
     .replace(/\b\d{1,3}(?:\.?\d{3}){1,2}-[\dkK]\b/g, '[RUT]')
     .replace(/\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b/g, '[correo]')
+    // Numero de comprobante: letras y despues una tirada larga de digitos.
+    .replace(/\b[A-Z]{3,}\d{10,}\b/g, '[comprobante]')
     // Cualquier corrida larga de digitos. Los montos chilenos llevan puntos
     // de miles, asi que "185.000" sobrevive y "900000000" no.
     .replace(/\b\d{7,}\b/g, '[número]');

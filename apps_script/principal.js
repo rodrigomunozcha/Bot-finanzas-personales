@@ -174,6 +174,16 @@ function latidoDiario() {
       'Mañana se reinicia sola.');
   }
 
+  // Un giro grande sin anotar en que se fue deja los informes cojos y no se
+  // nota, porque el gasto simplemente no existe en ninguna parte.
+  var efectivo = calcularEfectivo();
+  if (efectivo.disponible > 30000) {
+    avisos.push('· <b>' + formatearMonto(efectivo.disponible, 'CLP') +
+      '</b> en efectivo sin explicar\n' +
+      '  Giraste esa plata y no has dicho en qué se fue.\n' +
+      '  Anótalo así: <code>12000 efectivo</code>');
+  }
+
   var dias = diasSinRespaldo(propiedades);
   if (dias >= DIAS_SIN_RESPALDO) {
     avisos.push('· Hace <b>' + dias + ' días</b> que no respaldas\n' +
@@ -467,7 +477,7 @@ function instalar() {
   reportar([
     'Instalación lista.',
     '',
-    'Hoja creada: ' + SpreadsheetApp.openById(propiedades.getProperty('HOJA_ID')).getUrl(),
+    'Tu planilla: ' + SpreadsheetApp.openById(propiedades.getProperty('HOJA_ID')).getUrl(),
     'Etiquetas de Gmail: ' + ETIQUETA_PENDIENTE + ' y ' + ETIQUETA_PROCESADO,
     'Activador: revisarCorreo cada 5 minutos',
     'Chat id guardado: ' + (propiedades.getProperty('TELEGRAM_CHAT_ID') || 'FALTA (paso 7)'),
