@@ -265,7 +265,16 @@ function informeSemana() {
   var movimientos = todosLosMovimientos();
   var resumen = calcularResumen(movimientos, haceDias(6), diaDe(new Date()));
   var previo = calcularResumen(movimientos, haceDias(13), haceDias(7));
+
   tgEnviar(redactarInforme('Últimos 7 días', resumen, previo));
+  if (!resumen.cuenta) return;
+
+  enviarGraficos([
+    { blob: graficoSeguro(function () { return graficoCategorias(resumen, 'Últimos 7 días'); }),
+      pie: 'En qué se fue la plata esta semana' },
+    { blob: graficoSeguro(function () { return graficoPorDia(resumen); }),
+      pie: 'Cuánto gastaste cada día' },
+  ]);
 }
 
 function informeMes() {
@@ -278,13 +287,63 @@ function informeMes() {
   var resumen = calcularResumen(movimientos, inicioMes, diaDe(ahora));
   var previo = calcularResumen(movimientos, inicioMesPasado, finMesPasado);
 
-  var nombreMes = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
-    'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][ahora.getMonth()];
-  tgEnviar(redactarInforme(nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1),
-    resumen, previo));
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+    'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  var nombreMes = MESES[ahora.getMonth()];
+  var mesPrevio = MESES[(ahora.getMonth() + 11) % 12];
+  var titulo = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+
+  tgEnviar(redactarInforme(titulo, resumen, previo));
+  if (!resumen.cuenta) return;
+
+  enviarGraficos([
+    { blob: graficoSeguro(function () { return graficoCategorias(resumen, titulo); }),
+      pie: 'En qué se fue la plata este mes' },
+    { blob: graficoSeguro(function () {
+        return graficoComparado(resumen, previo, titulo, mesPrevio);
+      }),
+      pie: 'Cada categoría comparada con ' + mesPrevio },
+  ]);
 }
 
 /** Lo dispara el activador los domingos por la tarde. */
 function informeSemanalAutomatico() {
   informeSemana();
+}
+
+/**
+ * Lo dispara el activador el dia 1 de cada mes.
+ *
+ * Informa el mes que acaba de cerrar, no el que empieza: el dia 1 el mes en
+ * curso tiene cero gastos y un informe vacio no le sirve a nadie.
+ */
+function informeMensualAutomatico() {
+  var movimientos = todosLosMovimientos();
+  var ahora = new Date();
+
+  var inicioCerrado = diaDe(new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1));
+  var finCerrado = diaDe(new Date(ahora.getFullYear(), ahora.getMonth(), 0));
+  var inicioAnterior = diaDe(new Date(ahora.getFullYear(), ahora.getMonth() - 2, 1));
+  var finAnterior = diaDe(new Date(ahora.getFullYear(), ahora.getMonth() - 1, 0));
+
+  var resumen = calcularResumen(movimientos, inicioCerrado, finCerrado);
+  var previo = calcularResumen(movimientos, inicioAnterior, finAnterior);
+
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+    'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  var cerrado = MESES[(ahora.getMonth() + 11) % 12];
+  var anterior = MESES[(ahora.getMonth() + 10) % 12];
+  var titulo = cerrado.charAt(0).toUpperCase() + cerrado.slice(1) + ' (mes cerrado)';
+
+  tgEnviar(redactarInforme(titulo, resumen, previo));
+  if (!resumen.cuenta) return;
+
+  enviarGraficos([
+    { blob: graficoSeguro(function () { return graficoCategorias(resumen, cerrado); }),
+      pie: 'En qué se fue la plata en ' + cerrado },
+    { blob: graficoSeguro(function () {
+        return graficoComparado(resumen, previo, cerrado, anterior);
+      }),
+      pie: cerrado + ' comparado con ' + anterior },
+  ]);
 }

@@ -14,7 +14,7 @@ const vm = require('node:vm');
 
 const ORDEN = [
   'datos.gen.js', 'parsers.js', 'tarjeta.js', 'clasificador.js',
-  'telegram.js', 'almacen.js', 'mensajes.js', 'entradas.js', 'conversacion.js', 'informes.js', 'principal.js', 'diagnostico.js',
+  'telegram.js', 'almacen.js', 'mensajes.js', 'entradas.js', 'conversacion.js', 'graficos.js', 'informes.js', 'principal.js', 'diagnostico.js',
 ];
 
 /**
@@ -98,6 +98,7 @@ function crearEntorno(propiedades = {}) {
 
   let siguienteMensaje = 100;
   const porEntregar = [];   // avisos que Telegram tiene para entregar
+  const graficos = [];      // graficos que el codigo pidio dibujar
 
   // Reloj controlable: las tandas rapidas duran casi un minuto y las pruebas no
   // pueden esperar eso de verdad.
@@ -142,6 +143,42 @@ function crearEntorno(propiedades = {}) {
         }),
       };
     })(),
+    // Doble del servicio de graficos: registra lo que se le pide dibujar y
+    // devuelve una imagen de mentira, para poder verificar los datos que van al
+    // grafico sin depender de que Google los dibuje.
+    Charts: (() => {
+      const construido = (tipo) => {
+        const c = { _tipo: tipo, _datos: null, _titulo: '' };
+        const yo = {
+          setDataTable: (t) => { c._datos = t; return yo; },
+          setTitle: (t) => { c._titulo = t; return yo; },
+          setDimensions: () => yo,
+          setLegendPosition: () => yo,
+          set3D: () => yo,
+          build: () => ({
+            getAs: () => { graficos.push(c); return { _imagen: tipo }; },
+          }),
+        };
+        return yo;
+      };
+      return {
+        ColumnType: { STRING: 'string', NUMBER: 'number' },
+        Position: { NONE: 'none' },
+        newDataTable: () => {
+          const filas = [];
+          const t = {
+            _filas: filas,
+            addColumn: () => t,
+            addRow: (f) => { filas.push(f); return t; },
+            build: () => ({ _filas: filas }),
+          };
+          return t;
+        },
+        newPieChart: () => construido('torta'),
+        newColumnChart: () => construido('columnas'),
+        newBarChart: () => construido('barras'),
+      };
+    })(),
     Utilities: {
       getUuid: () => 'uuid-falso',
       // Sin espera real: las pruebas no pueden tardar lo que tarda el bot.
@@ -150,7 +187,8 @@ function crearEntorno(propiedades = {}) {
     UrlFetchApp: {
       fetch(url, opciones) {
         const metodo = url.split('/').pop();
-        const cuerpo = JSON.parse(opciones.payload);
+        const cuerpo = typeof opciones.payload === 'string'
+          ? JSON.parse(opciones.payload) : opciones.payload;
         enviados.push({ metodo, cuerpo });
 
         let resultado = true;
@@ -180,6 +218,10 @@ function crearEntorno(propiedades = {}) {
     hojas,
     contador,
     propiedades: almacenPropiedades,
+    /** Graficos que el codigo mando a dibujar, con sus datos. */
+    graficos,
+    /** Imagenes enviadas a Telegram, con su pie de foto. */
+    fotos: () => enviados.filter((x) => x.metodo === 'sendPhoto'),
     /** Deja avisos listos para que revisarTelegram los recoja. */
     encolarAvisos(...avisos) { porEntregar.push(...avisos); },
     /** Adelanta el reloj que ve el codigo, sin esperar de verdad. */

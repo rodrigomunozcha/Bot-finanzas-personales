@@ -156,6 +156,40 @@ function tgEnviar(texto, teclado) {
 }
 
 /**
+ * Manda una imagen con un pie de foto corto.
+ *
+ * Pasa por el mismo freno que los mensajes: una foto notifica igual que un
+ * texto, asi que si algo falla en bucle tiene que cortarse tambien.
+ *
+ * El pie de foto de Telegram admite hasta 1024 caracteres, bastante menos que
+ * un mensaje. Por eso el informe largo va como texto aparte y aca solo se
+ * manda una linea que diga que muestra la imagen.
+ */
+function tgEnviarFoto(imagen, pie) {
+  if (tgEstadoFreno() !== 'libre') {
+    console.error('Freno activo, imagen no enviada.');
+    return null;
+  }
+
+  // Apps Script arma el envio en varias partes solo cuando detecta un archivo
+  // dentro del contenido, asi que aca no se manda como JSON.
+  var r = UrlFetchApp.fetch(TG_API + tgToken() + '/sendPhoto', {
+    method: 'post',
+    payload: {
+      chat_id: tgChatId(),
+      caption: String(pie || '').substring(0, 1000),
+      parse_mode: 'HTML',
+      photo: imagen,
+    },
+    muteHttpExceptions: true,
+  });
+
+  var datos = JSON.parse(r.getContentText());
+  if (!datos.ok) console.error('Telegram sendPhoto: ' + datos.description);
+  return datos.ok ? datos.result.message_id : null;
+}
+
+/**
  * Reemplaza el mensaje en el mismo lugar del chat en vez de mandar uno nuevo.
  * Es lo que hace que responder no llene la conversacion de mensajes sueltos:
  * la pregunta se transforma en la respuesta.

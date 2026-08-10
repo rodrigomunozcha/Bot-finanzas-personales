@@ -468,6 +468,11 @@ function instalar() {
     ScriptApp.newTrigger('informeSemanalAutomatico').timeBased()
       .onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(19).create();
   }
+  // El dia 1 el mes recien empezado no tiene nada: se informa el que cerro.
+  if (existentes.indexOf('informeMensualAutomatico') < 0) {
+    ScriptApp.newTrigger('informeMensualAutomatico').timeBased()
+      .onMonthDay(1).atHour(10).create();
+  }
   if (!propiedades.getProperty('INSTALADO_EN')) {
     propiedades.setProperty('INSTALADO_EN', String(Date.now()));
   }
