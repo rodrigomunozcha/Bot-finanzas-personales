@@ -187,3 +187,52 @@ test('un gasto ya cerrado deja de contar como pendiente', () => {
   e.apretar('Sí, guardar así');
   assert.equal(e.contexto.contarSinClasificar(), 0);
 });
+
+// Sheets guardaba "2026-08-01T13:20" como texto, porque la T no calza con
+// ningún formato que reconozca. Una columna de texto con forma de fecha deja
+// inservible cualquier gráfico de tiempo que se conecte después.
+test('la fecha se guarda en la hoja como fecha, no como texto', () => {
+  const e = crearEntorno();
+  entra(e);
+
+  const [encabezados, fila] = e.hojas.movimientos._filas;
+  const guardada = fila[encabezados.indexOf('fechaHora')];
+
+  assert.ok(guardada instanceof Date, `quedó como ${typeof guardada}: ${guardada}`);
+  assert.equal(guardada.getHours(), 14);
+  assert.equal(guardada.getMinutes(), 1);
+});
+
+test('un gasto escrito a mano también guarda fecha de verdad', () => {
+  const e = crearEntorno();
+  e.contexto.manejarTexto('12000 efectivo almuerzo');
+
+  const [encabezados, fila] = e.hojas.movimientos._filas;
+  assert.ok(fila[encabezados.indexOf('fechaHora')] instanceof Date);
+});
+
+test('editar un gasto no lo devuelve a texto', () => {
+  const e = crearEntorno();
+  entra(e);
+  e.apretar('Sí, guardar así');
+
+  const [encabezados, fila] = e.hojas.movimientos._filas;
+  assert.ok(fila[encabezados.indexOf('fechaHora')] instanceof Date,
+    'la caché devuelve texto y al reescribir hay que volver a convertirlo');
+});
+
+test('una transferencia sin hora se guarda igual como fecha', () => {
+  const e = crearEntorno();
+  e.contexto.procesarMensaje({
+    getId: () => 't1',
+    getSubject: () => 'Aviso de transferencia de fondos',
+    getPlainBody: () => 'nuestro(a) cliente Ana Perez ha efectuado una transferencia ' +
+      'de fondos a tu cuenta con el siguiente detalle: Datos de cuenta ' +
+      'Fecha Asunto 01/08/2026 Pago clase Datos de destinatario Monto $50.000',
+  });
+
+  const [encabezados, fila] = e.hojas.movimientos._filas;
+  const guardada = fila[encabezados.indexOf('fechaHora')];
+  assert.ok(guardada instanceof Date);
+  assert.equal(guardada.getHours(), 0, 'sin hora queda a medianoche');
+});

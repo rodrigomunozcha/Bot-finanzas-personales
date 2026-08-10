@@ -18,19 +18,18 @@ const ORDEN = [
 ];
 
 /**
- * Google Sheets no guarda lo que uno le manda: convierte por su cuenta los
- * textos con forma de fecha en objetos Date, y al leerlos de vuelta ya no
- * llegan como cadena. El doble tiene que mentir igual que el original, o las
- * pruebas pasan con datos que en produccion nunca existen.
+ * Google Sheets guarda lo que se le manda, sin convertir.
+ *
+ * Se creyo lo contrario durante un tiempo y el doble convertia los textos con
+ * forma de fecha en objetos Date. Era falso: la evidencia llego de Looker
+ * Studio, que reporto la columna fechaHora como texto y no la pudo usar para
+ * ningun grafico de tiempo. Un texto con forma de fecha se queda como texto.
+ *
+ * Por eso el codigo convierte a Date antes de escribir, y este doble tiene que
+ * guardar tal cual para que esa conversion se pruebe de verdad.
  */
-const ISO_FECHA_HORA = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/;
-
 function comoLoGuardaSheets(valor) {
-  if (typeof valor !== 'string' || !ISO_FECHA_HORA.test(valor)) return valor;
-  const [fecha, hora] = valor.split('T');
-  const [a, m, d] = fecha.split('-').map(Number);
-  const [hh, mm] = hora ? hora.split(':').map(Number) : [0, 0];
-  return new Date(a, m - 1, d, hh, mm);
+  return valor;
 }
 
 function hojaFalsa(nombre, encabezados, contador) {

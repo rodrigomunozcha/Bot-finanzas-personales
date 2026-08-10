@@ -123,12 +123,36 @@ function _movimientoCacheado(id) {
   }
 }
 
+/**
+ * Convierte "2026-08-01T13:20" en una fecha de verdad antes de escribirla.
+ *
+ * Google Sheets guardaba ese texto tal cual, como cadena, porque la T del medio
+ * no calza con ningun formato que reconozca. Una columna de texto con forma de
+ * fecha rompe todo lo que despues lea los datos: Looker Studio no la puede
+ * convertir, las planillas no la pueden ordenar, y cualquier grafico de tiempo
+ * queda imposible.
+ *
+ * Guardar un objeto Date deja la columna con un tipo real y sin ambiguedad, y
+ * el codigo ya sabe leer las dos formas.
+ */
+function _comoFecha(valor) {
+  if (!valor) return valor;
+  if (typeof valor.getMonth === 'function') return valor;
+
+  var m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(String(valor));
+  if (!m) return valor;
+
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]),
+    Number(m[4] || 0), Number(m[5] || 0));
+}
+
 function registrarMovimiento(mov) {
   var h = hoja(HOJA_MOVIMIENTOS);
   var id = mov.id || nuevoId();
   var fila = COLUMNAS.map(function (col) {
     if (col === 'id') return id;
     if (col === 'creado') return new Date();
+    if (col === 'fechaHora') return _comoFecha(mov[col]) || '';
     return mov[col] === undefined || mov[col] === null ? '' : mov[col];
   });
   h.appendRow(fila);
@@ -151,6 +175,7 @@ function registrarMovimiento(mov) {
 function guardarMovimiento(mov) {
   if (!mov._fila) throw new Error('guardarMovimiento necesita un movimiento leído de la hoja.');
   var valores = COLUMNAS.map(function (col) {
+    if (col === 'fechaHora') return _comoFecha(mov[col]) || '';
     return mov[col] === undefined || mov[col] === null ? '' : mov[col];
   });
   hoja(HOJA_MOVIMIENTOS).getRange(mov._fila, 1, 1, COLUMNAS.length).setValues([valores]);

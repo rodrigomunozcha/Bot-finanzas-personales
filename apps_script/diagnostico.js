@@ -215,6 +215,59 @@ function mostrarMiChatId() {
 }
 
 /**
+ * Reescribe como fechas de verdad las que quedaron guardadas como texto.
+ *
+ * Se corre una sola vez. Las filas antiguas se escribieron antes de que
+ * registrarMovimiento convirtiera el texto, asi que la columna quedo mezclada,
+ * y una columna mezclada es peor que una toda de texto: las herramientas de
+ * afuera no le aciertan el tipo y fallan de formas raras.
+ */
+function normalizarFechasDeLaHoja() {
+  var h = hoja(HOJA_MOVIMIENTOS);
+  if (h.getLastRow() < 2) reportar(['La hoja está vacía, no hay nada que convertir.']);
+
+  var columna = COLUMNAS.indexOf('fechaHora') + 1;
+  var rango = h.getRange(2, columna, h.getLastRow() - 1, 1);
+  var valores = rango.getValues();
+
+  var convertidas = 0;
+  var yaEstaban = 0;
+  var raras = [];
+
+  var nuevos = valores.map(function (fila) {
+    var v = fila[0];
+    if (!v) return [''];
+    if (typeof v.getMonth === 'function') {
+      yaEstaban++;
+      return [v];
+    }
+    var fecha = _comoFecha(v);
+    if (typeof fecha.getMonth === 'function') {
+      convertidas++;
+      return [fecha];
+    }
+    raras.push(String(v));
+    return [v];
+  });
+
+  rango.setValues(nuevos);
+
+  var lineas = [
+    convertidas + ' fechas convertidas de texto a fecha real.',
+    yaEstaban + ' ya estaban bien.',
+  ];
+  if (raras.length) {
+    lineas.push('');
+    lineas.push('No pude convertir ' + raras.length + ':');
+    raras.slice(0, 5).forEach(function (r) { lineas.push('  ' + r); });
+  }
+  lineas.push('');
+  lineas.push('En Looker Studio: Recurso -> Gestionar fuentes de datos ->');
+  lineas.push('Editar -> Actualizar campos. fechaHora debería quedar como fecha.');
+  reportar(lineas);
+}
+
+/**
  * Registra en Telegram la lista de comandos del menu.
  *
  * Existe suelta para no tener que correr instalar() entero cada vez que cambia
