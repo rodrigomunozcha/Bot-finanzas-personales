@@ -11,10 +11,7 @@
  *   · Solo los que tienen monto en pesos. Una compra en dolares sin pagar aun
  *     no tiene costo real conocido, asi que no se suma: se cuenta aparte y se
  *     avisa, porque si no el total del mes mentiria hacia abajo.
- *   · La categoria "⛔ Balance (NO CONSIDERAR)" se excluye, para eso existe.
  */
-
-var CATEGORIA_EXCLUIDA = '⛔ Balance';
 
 /** Corta la fecha de un movimiento a "YYYY-MM-DD", venga como texto o Date. */
 function diaDe(valor) {
@@ -57,8 +54,11 @@ function calcularResumen(movimientos, desde, hasta) {
   movimientos.forEach(function (m) {
     var dia = diaDe(m.fechaHora);
     if (!dia || dia < desde || dia > hasta) return;
+    // Basta con el tipo: los giros, los ingresos, los reembolsos y el pago de
+    // la tarjeta no son "gasto". Antes tambien se filtraba por una categoria
+    // llamada "Balance (NO CONSIDERAR)", heredada de Money Manager, que hacia
+    // lo mismo por otro camino. Dos mecanismos para una cosa confunden.
     if (m.tipo !== 'gasto') return;
-    if (String(m.categoria).indexOf(CATEGORIA_EXCLUIDA) === 0) return;
 
     if (!m.categoria) sinClasificar++;
 
@@ -135,8 +135,7 @@ function detectarAtipicos(movimientos, desde, hasta, montos) {
   return movimientos.filter(function (m) {
     var dia = diaDe(m.fechaHora);
     return dia >= desde && dia <= hasta && m.tipo === 'gasto' &&
-      Number(m.montoClp) > umbral &&
-      String(m.categoria).indexOf(CATEGORIA_EXCLUIDA) !== 0;
+      Number(m.montoClp) > umbral;
   }).sort(function (a, b) {
     return Number(b.montoClp) - Number(a.montoClp);
   }).slice(0, 3);

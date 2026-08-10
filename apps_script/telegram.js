@@ -46,6 +46,8 @@ function tgLlamar(metodo, cuerpo) {
  * Se registra una sola vez, desde instalar().
  */
 var COMANDOS = [
+  { command: 'saldo', description: '🏦 Cuánta plata me queda en la cuenta' },
+  { command: 'ingreso', description: '💰 Anotar plata que me entró' },
   { command: 'semana', description: '📊 Cuánto gasté en los últimos 7 días' },
   { command: 'mes', description: '📊 Cuánto llevo gastado este mes' },
   { command: 'efectivo', description: '💵 Cuánto efectivo me queda sin anotar' },

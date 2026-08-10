@@ -205,26 +205,6 @@ function obtenerMovimiento(id) {
   return mov;
 }
 
-/**
- * Escribe todos los cambios de una vez.
- * Un setValue por columna significaba una ida y vuelta a Google por cada campo,
- * y cerrar un movimiento toca tres. Se lee la fila entera, se modifica en
- * memoria y se devuelve completa.
- */
-function actualizarMovimiento(id, cambios) {
-  var h = hoja(HOJA_MOVIMIENTOS);
-  var fila = _indiceFila(h, id);
-  if (!fila) return false;
-
-  var rango = h.getRange(fila, 1, 1, COLUMNAS.length);
-  var valores = rango.getValues()[0];
-  Object.keys(cambios).forEach(function (col) {
-    var i = COLUMNAS.indexOf(col);
-    if (i >= 0) valores[i] = cambios[col];
-  });
-  rango.setValues([valores]);
-  return true;
-}
 
 /**
  * Movimientos que quedaron sin responder.

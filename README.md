@@ -149,9 +149,14 @@ termina. El bot se encarga de recordarte cuando pasa una semana.
 - [x] Freno de emergencia contra mensajes en bucle
 - [x] Respaldo local a SQLite, con CSV para Excel
 - [x] Latido diario: avisa solo cuando hay algo que arreglar
+- [x] Informes de semana y mes, con detalle gasto por gasto
+- [x] Entrada manual: gastos, efectivo, giros e ingresos
+- [x] Saldo de la cuenta corriente
+- [ ] Presupuesto por categoría, para que las cifras tengan veredicto
 - [ ] Formatos de correo que faltan: transferencia enviada, giro, anulación
-- [ ] Entrada manual de gastos en efectivo
-- [ ] Informes semanales y mensuales
+- [ ] Poda de subcategorías que no aplican en Chile
+- [ ] Dashboard (Looker Studio primero, HTML local después)
+- [ ] Narración con Ollama, cuando haya meses de datos
 
 ### Formatos de correo que faltan
 

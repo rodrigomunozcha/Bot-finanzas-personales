@@ -87,7 +87,11 @@ function procesarPagoTarjeta(pago, correoId) {
 
   var reparto = repartirPago(pago, pendientes);
   reparto.cerradas.forEach(function (c) {
-    actualizarMovimiento(c.id, { montoClp: c.montoClp });
+    var mov = obtenerMovimiento(c.id);
+    if (mov) {
+      mov.montoClp = c.montoClp;
+      guardarMovimiento(mov);
+    }
   });
 
   registrarMovimiento({
@@ -98,7 +102,6 @@ function procesarPagoTarjeta(pago, correoId) {
     moneda: 'USD',
     montoClp: pago.montoClp,
     medioPago: 'transferencia',
-    categoria: '⛔ Balance (NO CONSIDERAR)',
     estado: ESTADOS.INTERNO,
     correoId: correoId,
   });

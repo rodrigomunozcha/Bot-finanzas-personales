@@ -16,53 +16,18 @@ function arbolDe(tipo) {
   return tipo === 'ingreso' ? CATEGORIAS_INGRESO : CATEGORIAS_GASTO;
 }
 
-/** Encabezado comun: comercio, monto y cuando. */
-function encabezado(mov) {
-  var lineas = [];
-
-  if (mov.tipo === 'entrada' || mov.tipo === 'ingreso') {
-    lineas.push('💸 <b>Transferencia recibida</b>');
-    lineas.push(formatearMonto(mov.monto, mov.moneda) +
-      (mov.remitente ? ' de ' + tgEscapar(mov.remitente) : ''));
-    if (mov.nota) lineas.push('<i>' + tgEscapar(mov.nota) + '</i>');
-  } else {
-    lineas.push('<b>' + tgEscapar(mov.comercio) + '</b>');
-    var detalle = formatearMonto(mov.monto, mov.moneda);
-    if (mov.medioPago) detalle += ' · ' + mov.medioPago;
-    if (mov.fechaHora) detalle += ' · ' + formatearFecha(mov.fechaHora);
-    lineas.push(detalle);
-  }
-
-  if (mov.moneda && mov.moneda !== 'CLP') {
-    lineas.push('<i>en pesos: pendiente hasta que pagues la tarjeta</i>');
-  }
-  return lineas.join('\n');
-}
-
 /**
- * Anuncia un gasto recien leido y abre la conversacion que corresponda.
- * Devuelve el id del movimiento registrado.
+ * Abre la conversacion de un gasto y lo guarda.
+ *
+ * Es el unico camino: da lo mismo si el gasto vino de un correo del banco o de
+ * un texto escrito a mano. Antes habia dos funciones casi identicas y el riesgo
+ * real era arreglar una y olvidar la otra, que ya paso con el manejo de fechas.
+ *
+ * El identificador se genera antes de escribir nada, para que los botones ya lo
+ * lleven, el mensaje salga primero y la fila se agregue una sola vez completa.
  */
-function anunciarGasto(lectura, correoId) {
-  var propuesta = proponerClasificacion(lectura.comercio, cargarAprendizaje());
-
-  // El identificador se genera antes de escribir nada. Asi los botones ya lo
-  // llevan, el mensaje se manda primero, y la fila se agrega una sola vez con
-  // todo adentro. Antes se guardaba la fila, se mandaba el mensaje, y despues
-  // habia que buscar la fila de nuevo para anotarle el numero de mensaje.
-  var id = nuevoId();
-  var mov = {
-    id: id,
-    fechaHora: lectura.fechaHora,
-    tipo: 'gasto',
-    comercio: lectura.comercio,
-    monto: lectura.monto,
-    moneda: lectura.moneda,
-    montoClp: lectura.montoClp,
-    medioPago: lectura.medioPago,
-    correoId: correoId,
-  };
-
+function abrirGasto(mov) {
+  var propuesta = proponerClasificacion(mov.comercio, cargarAprendizaje());
   var texto, teclado;
 
   if (propuesta && propuesta.automatico) {
@@ -71,26 +36,42 @@ function anunciarGasto(lectura, correoId) {
     mov.estado = ESTADOS.CERRADO;
     texto = '✅ ' + encabezado(mov) + '\n' +
       rutaCategoria(propuesta.categoria, propuesta.subcategoria);
-    teclado = tecladoCerrado(id);
+    teclado = tecladoCerrado(mov.id);
   } else if (propuesta) {
-    // Se guarda la propuesta en las columnas de categoria aunque no este
-    // confirmada. Si el usuario aprieta "Correcto" no hay nada que recalcular,
-    // y si nunca responde, queda igual un dato razonable en vez de un vacio.
+    // La propuesta se guarda aunque no este confirmada: si el usuario aprieta
+    // "Sí, guardar así" no hay nada que recalcular, y si nunca responde queda
+    // un dato razonable en vez de un vacio.
     mov.categoria = propuesta.categoria;
     mov.subcategoria = propuesta.subcategoria;
     mov.estado = ESTADOS.ESPERANDO_CATEGORIA;
     texto = encabezado(mov) + '\n\n' +
       rutaCategoria(propuesta.categoria, propuesta.subcategoria) + '?';
-    teclado = tecladoConfirmar(id);
+    teclado = tecladoConfirmar(mov.id);
   } else {
     mov.estado = ESTADOS.ESPERANDO_CATEGORIA;
     texto = encabezado(mov) + '\n\n¿Qué categoría?';
-    teclado = tecladoCategorias(id, CATEGORIAS_GASTO);
+    teclado = tecladoCategorias(mov.id, CATEGORIAS_GASTO);
   }
 
   mov.mensajeId = tgEnviar(texto, teclado);
   registrarMovimiento(mov);
-  return id;
+  marcarConversacion();
+  return mov.id;
+}
+
+/** Un gasto que llego por correo del banco. */
+function anunciarGasto(lectura, correoId) {
+  return abrirGasto({
+    id: nuevoId(),
+    fechaHora: lectura.fechaHora,
+    tipo: 'gasto',
+    comercio: lectura.comercio,
+    monto: lectura.monto,
+    moneda: lectura.moneda,
+    montoClp: lectura.montoClp,
+    medioPago: lectura.medioPago,
+    correoId: correoId,
+  });
 }
 
 /** Anuncia una transferencia recibida. Primero hay que saber si es ingreso. */
@@ -147,24 +128,6 @@ function persistirCierre(mov, categoria, subcategoria, registro) {
   mov.estado = ESTADOS.CERRADO;
   guardarMovimiento(mov);
   if (registro) guardarAprendizaje(registro);
-}
-
-/** Texto del mensaje ya cerrado, con el aviso de aprendizaje si corresponde. */
-function textoCerrado(mov, categoria, subcategoria, registro) {
-  var texto = '✅ ' + encabezado(mov) + '\n' + rutaCategoria(categoria, subcategoria);
-
-  if (registro) {
-    var faltan = faltanParaAutomatico(registro.confirmaciones);
-    if (faltan === 0) {
-      texto += '\n<i>Aprendido: las próximas compras en este comercio las ' +
-        'clasifico solo, sin preguntarte.</i>';
-    } else {
-      texto += '\n<i>Si eliges lo mismo ' + faltan +
-        (faltan === 1 ? ' vez más' : ' veces más') +
-        ', empiezo a clasificar este comercio solo.</i>';
-    }
-  }
-  return texto;
 }
 
 /**
@@ -256,8 +219,9 @@ function manejarBoton(callback) {
   }
 
   if (accion === 'ing') {
-    actualizarMovimiento(id, { tipo: 'ingreso', estado: ESTADOS.ESPERANDO_CATEGORIA });
     mov.tipo = 'ingreso';
+    mov.estado = ESTADOS.ESPERANDO_CATEGORIA;
+    guardarMovimiento(mov);
     tgEditar(mov.mensajeId, encabezado(mov) + '\n\n¿Qué tipo de ingreso?',
       tecladoCategorias(id, CATEGORIAS_INGRESO));
     return;
@@ -266,7 +230,9 @@ function manejarBoton(callback) {
   if (accion === 'reem') {
     // Un reembolso no es ingreso: te devolvieron plata que ya habias puesto.
     // Contarlo como ingreso inflaria tus entradas del mes.
-    actualizarMovimiento(id, { tipo: 'reembolso', estado: ESTADOS.REEMBOLSO });
+    mov.tipo = 'reembolso';
+    mov.estado = ESTADOS.REEMBOLSO;
+    guardarMovimiento(mov);
     tgEditar(mov.mensajeId,
       '🔄 ' + encabezado(mov) + '\n<i>Reembolso. No cuenta como ingreso.</i>', []);
     return;
@@ -298,7 +264,6 @@ function comando(texto) {
   return { nombre: m[1].toLowerCase(), resto: m[2].trim() };
 }
 
-
 /** Cuanto tiempo se espera la nota antes de cancelarla sola. */
 var VENTANA_NOTA_MS = 600000;   // 10 minutos
 
@@ -321,188 +286,6 @@ function notaPendiente(propiedades) {
     return null;
   }
   return partes[0];
-}
-
-
-/**
- * Reconoce un gasto escrito a mano: un monto y despues la descripcion.
- *
- *   "12000 efectivo almuerzo"  -> $12.000 en efectivo, "almuerzo"
- *   "3.500 micro"              -> $3.500, "micro"
- *
- * Se exige que empiece con el monto para no confundir un gasto con cualquier
- * frase suelta. Los puntos de miles se aceptan porque asi se escriben los pesos
- * en Chile.
- */
-function leerGastoEscrito(texto) {
-  var m = /^\$?\s*([\d.]{2,})\s*(.*)$/.exec(String(texto).trim());
-  if (!m) return null;
-
-  var monto = normalizarMonto(m[1], 'CLP');
-  if (!monto || monto < 1) return null;
-
-  var resto = m[2].trim();
-  var esGiro = /\bgiro\b|\bcajero\b/i.test(resto);
-  var esEfectivo = /efectivo/i.test(resto);
-  var descripcion = resto.replace(/efectivo|giro|cajero/ig, '')
-    .replace(/\s{2,}/g, ' ').trim();
-
-  return {
-    monto: monto,
-    esGiro: esGiro,
-    medioPago: esEfectivo || esGiro ? 'efectivo' : 'a mano',
-    descripcion: descripcion,
-  };
-}
-
-/**
- * Un giro por cajero no es un gasto: es plata que se mueve de la cuenta al
- * bolsillo y sigue siendo tuya. El gasto ocurre despues, cuando compras algo
- * con esos billetes y lo anotas con "12000 efectivo".
- *
- * Contarlo como gasto y ademas anotar el efectivo seria contar dos veces la
- * misma plata, por eso se registra como movimiento interno y queda fuera de
- * los informes.
- */
-function registrarGiro(datos) {
-  var ahora = new Date();
-  registrarMovimiento({
-    id: nuevoId(),
-    fechaHora: ahora.getFullYear() + '-' + dos(ahora.getMonth() + 1) + '-' +
-      dos(ahora.getDate()) + 'T' + dos(ahora.getHours()) + ':' + dos(ahora.getMinutes()),
-    tipo: 'giro',
-    comercio: datos.descripcion || 'Giro por cajero',
-    monto: datos.monto,
-    moneda: 'CLP',
-    montoClp: datos.monto,
-    medioPago: 'efectivo',
-    categoria: '⛔ Balance (NO CONSIDERAR)',
-    estado: ESTADOS.INTERNO,
-  });
-
-  var saldo = calcularEfectivo();
-  tgEnviar([
-    '💵 <b>Giro anotado: ' + formatearMonto(datos.monto, 'CLP') + '</b>',
-    '',
-    'No lo cuento como gasto, porque esa plata sigue siendo tuya: solo pasó de',
-    'la cuenta a tu bolsillo. El gasto ocurre cuando la uses.',
-    '',
-    'A medida que gastes ese efectivo, anótalo:',
-    '<code>12000 efectivo</code>',
-    '',
-    'Tienes <b>' + formatearMonto(saldo.disponible, 'CLP') + '</b> en efectivo sin anotar.',
-  ].join('\n'));
-}
-
-/**
- * Cuanto efectivo giraste y todavia no explicaste en que se fue.
- * Es la unica forma de que el hueco sea visible en vez de un descuadre mudo.
- */
-function calcularEfectivo() {
-  var girado = 0;
-  var gastado = 0;
-
-  todosLosMovimientos().forEach(function (m) {
-    var clp = Number(m.montoClp) || 0;
-    if (m.tipo === 'giro') girado += clp;
-    else if (m.tipo === 'gasto' && m.medioPago === 'efectivo') gastado += clp;
-  });
-
-  return { girado: girado, gastado: gastado, disponible: girado - gastado };
-}
-
-function informeEfectivo() {
-  var saldo = calcularEfectivo();
-
-  if (!saldo.girado && !saldo.gastado) {
-    tgEnviar([
-      '💵 <b>Efectivo</b>',
-      '',
-      'No hay ningún giro ni gasto en efectivo registrado.',
-      '',
-      'Cuando saques plata del cajero, anótalo:',
-      '<code>50000 giro</code>',
-      '',
-      'Y a medida que la gastes:',
-      '<code>12000 efectivo</code>',
-      '',
-      'Así sé cuánto te queda sin explicar.',
-    ].join('\n'));
-    return;
-  }
-
-  var lineas = [
-    '💵 <b>Efectivo</b>',
-    '',
-    'Giraste: ' + formatearMonto(saldo.girado, 'CLP'),
-    'Anotaste como gasto: ' + formatearMonto(saldo.gastado, 'CLP'),
-    '',
-    '<b>Sin explicar: ' + formatearMonto(saldo.disponible, 'CLP') + '</b>',
-  ];
-
-  if (saldo.disponible < 0) {
-    lineas.push('');
-    lineas.push('<i>Anotaste más gasto en efectivo del que giraste. Puede que ' +
-      'falte registrar un giro, o que hayas pagado con efectivo que ya tenías.</i>');
-  } else if (saldo.disponible > 0) {
-    lineas.push('');
-    lineas.push('<i>Es plata que sacaste y todavía no dijiste en qué se fue. ' +
-      'Puede estar en tu bolsillo, o pueden ser gastos que no anotaste.</i>');
-  }
-  tgEnviar(lineas.join('\n'));
-}
-
-/** Registra el gasto escrito y abre la conversacion para clasificarlo. */
-function registrarGastoEscrito(datos) {
-  // Sin descripcion el comercio queda como "Efectivo" a secas. Eso basta: la
-  // categoria la elige el usuario enseguida con los botones, igual que en
-  // cualquier gasto del banco.
-  var comercio = datos.descripcion || (datos.medioPago === 'efectivo'
-    ? 'Efectivo' : 'Gasto a mano');
-
-  var ahora = new Date();
-  var id = nuevoId();
-  var mov = {
-    id: id,
-    fechaHora: ahora.getFullYear() + '-' + dos(ahora.getMonth() + 1) + '-' +
-      dos(ahora.getDate()) + 'T' + dos(ahora.getHours()) + ':' + dos(ahora.getMinutes()),
-    tipo: 'gasto',
-    comercio: comercio,
-    monto: datos.monto,
-    moneda: 'CLP',
-    montoClp: datos.monto,
-    medioPago: datos.medioPago,
-    estado: ESTADOS.ESPERANDO_CATEGORIA,
-    correoId: '',
-  };
-
-  // Un gasto a mano tambien aprende: si siempre anotas "micro" como Transporte,
-  // a la tercera deja de preguntarte igual que con los comercios del banco.
-  var propuesta = proponerClasificacion(comercio, cargarAprendizaje());
-  var texto, teclado;
-
-  if (propuesta && propuesta.automatico) {
-    mov.categoria = propuesta.categoria;
-    mov.subcategoria = propuesta.subcategoria;
-    mov.estado = ESTADOS.CERRADO;
-    texto = '✅ ' + encabezado(mov) + '\n' +
-      rutaCategoria(propuesta.categoria, propuesta.subcategoria);
-    teclado = tecladoCerrado(id);
-  } else if (propuesta) {
-    mov.categoria = propuesta.categoria;
-    mov.subcategoria = propuesta.subcategoria;
-    texto = encabezado(mov) + '\n\n' +
-      rutaCategoria(propuesta.categoria, propuesta.subcategoria) + '?';
-    teclado = tecladoConfirmar(id);
-  } else {
-    texto = encabezado(mov) + '\n\n¿Qué categoría?';
-    teclado = tecladoCategorias(id, CATEGORIAS_GASTO);
-  }
-
-  mov.mensajeId = tgEnviar(texto, teclado);
-  registrarMovimiento(mov);
-  marcarConversacion();
-  return id;
 }
 
 /** Procesa un mensaje de texto: notas, comandos y ayuda. */
@@ -549,6 +332,9 @@ function manejarTexto(texto) {
   // Gasto escrito a mano: "12000 efectivo almuerzo". Se da por hecho que es un
   // gasto, porque es lo unico que uno anota a mano: los ingresos y las
   // transferencias llegan por correo.
+  var ingreso = leerIngresoEscrito(texto);
+  if (ingreso) return registrarIngreso(ingreso);
+
   var aMano = leerGastoEscrito(texto);
   if (aMano) return aMano.esGiro ? registrarGiro(aMano) : registrarGastoEscrito(aMano);
 
@@ -560,6 +346,10 @@ function manejarTexto(texto) {
     return;
   }
 
+  if (cmd && cmd.nombre === 'ingreso') return explicarIngreso();
+  if (cmd && cmd.nombre === 'saldo') {
+    return informeSaldo(cmd.resto ? normalizarMonto(cmd.resto, 'CLP') : null);
+  }
   if (cmd && cmd.nombre === 'efectivo') return informeEfectivo();
   if (cmd && cmd.nombre === 'ultimos') return mostrarUltimos();
   if (cmd && cmd.nombre === 'datos') return mostrarDatos();
@@ -629,76 +419,3 @@ function manejarTexto(texto) {
     '<code>/reanudar</code>.');
 }
 
-
-/** Que sabe hacer el bot, en el orden en que se usa. */
-function textoDeAyuda() {
-  return [
-    '<b>Cómo anotar un gasto en efectivo</b>',
-    'Escríbeme el monto y la palabra <b>efectivo</b>:',
-    '<code>34000 efectivo</code>',
-    'Después te pregunto la categoría con botones, igual que con las compras',
-    'con tarjeta. Si quieres, puedes agregar de qué fue:',
-    '<code>34000 efectivo almuerzo</code>',
-    '',
-    '<b>Las compras con tarjeta no las anotas tú.</b>',
-    'Llegan solas desde el correo del banco, en menos de cinco minutos.',
-    '',
-    '<b>Comandos</b>',
-    '/semana  ·  cuánto gasté en los últimos 7 días',
-    '/mes  ·  cuánto llevo este mes',
-    '/efectivo  ·  cuánto efectivo giraste y no has anotado',
-    '/ultimos  ·  ver y corregir los últimos gastos',
-    '/pendientes  ·  lo que falta clasificar',
-    '/datos  ·  abrir la planilla y respaldarla',
-    '',
-    '<b>Menos usados</b>',
-    '/olvidar COMERCIO  ·  que vuelva a preguntarte por ese comercio',
-    '/respaldado  ·  avisar que ya respaldaste',
-    '/reanudar  ·  reactivarme si me froné por seguridad',
-  ].join('\n');
-}
-
-/**
- * Los ultimos gastos, con un boton para corregir cada uno.
- *
- * Hacia falta: una vez que el mensaje original queda atras en el chat, no habia
- * forma de cambiarle la categoria a un gasto de ayer.
- */
-function mostrarUltimos() {
-  var movimientos = todosLosMovimientos()
-    .filter(function (m) { return m.tipo === 'gasto'; })
-    .slice(-5).reverse();
-
-  if (!movimientos.length) {
-    tgEnviar('Todavía no hay gastos registrados.');
-    return;
-  }
-
-  tgEnviar('<b>Tus últimos ' + movimientos.length + ' gastos</b>\n' +
-    '<i>Toca el que quieras corregir.</i>');
-
-  movimientos.forEach(function (m) {
-    tgEnviar('✅ ' + encabezado(m) + '\n' + rutaCategoria(m.categoria, m.subcategoria) +
-      (m.nota ? '\n📝 ' + tgEscapar(m.nota) : ''), tecladoCerrado(m.id));
-  });
-}
-
-/** Enlace a la planilla y recordatorio de como respaldar. */
-function mostrarDatos() {
-  var id = PropertiesService.getScriptProperties().getProperty('HOJA_ID');
-  tgEnviar([
-    '<b>Tu planilla en Google</b>',
-    'https://docs.google.com/spreadsheets/d/' + id + '/edit',
-    'Ahí está todo lo que el bot ha registrado, y puedes editarlo a mano.',
-    '',
-    '<b>Tu copia en el Mac</b>',
-    'Para bajarla y guardarla en tu disco:',
-    '1. En la planilla: Archivo → Descargar → Microsoft Excel',
-    '2. En el Mac: <code>cd la carpeta del proyecto && python3 herramientas/respaldar.py</code>',
-    '3. Vuelve y escríbeme /respaldado',
-    '',
-    'Eso deja los datos en <code>datos/finanzas.db</code> (base SQLite, para',
-    'análisis) y en <code>datos/movimientos.csv</code> (se abre en Excel).',
-    'La copia local nunca borra nada, aunque la planilla se pierda.',
-  ].join('\n'));
-}
