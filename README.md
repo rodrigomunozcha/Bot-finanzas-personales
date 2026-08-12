@@ -54,6 +54,15 @@ con lo que salió de la cuenta.
 devolución de plata adelantada. El bot pregunta primero si es ingreso o
 reembolso.
 
+**De una transferencia enviada, el mensaje hace de comercio.** El correo trae
+todos los datos del destinatario y no se toma ninguno: solo el monto, el mensaje
+que escribiste y la fecha. Ese mensaje ocupa el lugar del nombre del comercio
+para que el aprendizaje funcione, porque con un nombre fijo como "Transferencia
+enviada" pasaría algo peor que no aprender: a la tercera transferencia
+clasificada igual, todas las siguientes se clasificarían solas con esa categoría
+y sin preguntar. Así, un arriendo que va cada mes con el mismo texto se aprende,
+y una transferencia suelta sigue preguntando.
+
 **De los correos de transferencia no se extrae ningún dato identificatorio.**
 Traen RUT, nombre completo, correo y número de cuenta. El lector toma solo monto,
 primer nombre del remitente, glosa y fecha. Hay una prueba que lo verifica.
@@ -140,7 +149,8 @@ termina. El bot se encarga de recordarte cuando pasa una semana.
 
 - [x] Árbol de categorías recuperado del respaldo de Money Manager
 - [x] Lector de correos de Banco de Chile: compra con débito, compra con
-      crédito, transferencia recibida, pago de tarjeta internacional
+      crédito, transferencia recibida, transferencia enviada a terceros, pago de
+      tarjeta internacional
 - [x] Cierre automático de compras en dólares al pagar la tarjeta
 - [x] Semilla de comercios chilenos
 - [x] Bot de Telegram: categoría, subcategoría opcional y nota
@@ -153,7 +163,7 @@ termina. El bot se encarga de recordarte cuando pasa una semana.
 - [x] Entrada manual: gastos, efectivo, giros e ingresos
 - [x] Saldo de la cuenta corriente
 - [ ] Presupuesto por categoría, para que las cifras tengan veredicto
-- [ ] Formatos de correo que faltan: transferencia enviada, giro, anulación
+- [ ] Formatos de correo que faltan: giro por cajero, anulación
 - [ ] Poda de subcategorías que no aplican en Chile
 - [x] Gráficos en los informes, enviados por Telegram
 - [ ] Narración con Ollama, cuando haya meses de datos
@@ -176,6 +186,5 @@ el seguimiento semanal.
 
 Se agregan a medida que aparezca un ejemplo real de cada uno:
 
-- Transferencia enviada
 - Giro por cajero automático
 - Anulación o reverso de una compra

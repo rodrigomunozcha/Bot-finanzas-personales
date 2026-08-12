@@ -24,7 +24,7 @@ const TRANSFERENCIA = {
     'Banco Chile/Edwards Cuenta Corriente 00-000-00000-00 Monto $185.000',
 };
 
-test('compra con debito: extrae los cinco campos', () => {
+test('compra con debito: extrae los campos que se usan', () => {
   const r = p.leerCorreo(COMPRA_DEBITO.asunto, COMPRA_DEBITO.cuerpo);
   assert.equal(r.tipo, 'gasto');
   assert.equal(r.monto, 12500);
@@ -32,9 +32,16 @@ test('compra con debito: extrae los cinco campos', () => {
   assert.equal(r.montoClp, 12500);
   assert.equal(r.pendienteConversion, false);
   assert.equal(r.medioPago, 'debito');
-  assert.equal(r.cuenta, '1234');
   assert.equal(r.comercio, 'JUMBO CENTRAL');
   assert.equal(r.fechaHora, '2026-08-01T13:20');
+});
+
+// Se devolvian y no los usaba nadie. Un dato de la cuenta que el sistema no
+// necesita no tiene por que salir del lector.
+test('los cuatro dígitos de la cuenta no salen del lector', () => {
+  const r = p.leerCorreo(COMPRA_DEBITO.asunto, COMPRA_DEBITO.cuerpo);
+  assert.equal(r.cuenta, undefined);
+  assert.equal(JSON.stringify(r).includes('1234'), false);
 });
 
 test('el asunto distingue credito de debito con el mismo cuerpo', () => {
@@ -61,14 +68,25 @@ test('comercio que contiene la palabra "el" no corta el nombre', () => {
   assert.equal(r.fechaHora, '2026-08-02T21:15');
 });
 
-test('transferencia recibida: monto, remitente y glosa', () => {
+test('transferencia recibida: solo monto y fecha', () => {
   const r = p.leerCorreo(TRANSFERENCIA.asunto, TRANSFERENCIA.cuerpo);
   assert.equal(r.tipo, 'entrada', 'no se asume que sea ingreso hasta que el usuario lo diga');
   assert.equal(r.monto, 185000);
   assert.equal(r.moneda, 'CLP');
-  assert.equal(r.remitente, 'Jessica');
-  assert.equal(r.glosa, 'Maleta y taxi');
   assert.equal(r.fechaHora, '2026-08-01');
+  assert.equal(r.comercio, 'Transferencia recibida');
+});
+
+// Antes se guardaba el primer nombre de quien enviaba y la glosa que habia
+// escrito. Los dos se sacaron: el nombre es de alguien que no eligio estar en
+// este sistema, y la glosa es texto libre donde cabe cualquier cosa.
+test('de quien envía no queda ni el primer nombre, ni lo que escribió', () => {
+  const r = p.leerCorreo(TRANSFERENCIA.asunto, TRANSFERENCIA.cuerpo);
+  assert.equal(r.remitente, undefined);
+  assert.equal(r.glosa, undefined);
+  const serializado = JSON.stringify(r);
+  assert.equal(serializado.includes('Jessica'), false);
+  assert.equal(serializado.includes('Maleta y taxi'), false);
 });
 
 test('transferencia: no se extrae ningun dato identificatorio', () => {
@@ -127,9 +145,7 @@ test('lee la transferencia con la tabla etiquetada valor por valor', () => {
   assert.ok(r, 'no reconoció el correo');
   assert.equal(r.tipo, 'entrada');
   assert.equal(r.monto, 185000);
-  assert.equal(r.remitente, 'Jessica');
-  assert.equal(r.glosa, 'Maleta y taxi');
-  assert.equal(r.fechaHora, '2026-08-01');
+  assert.equal(r.fechaHora, '2026-08-01', 'el patrón de detalle sigue dando la fecha');
 });
 
 test('el monto se lee aunque después venga el número de comprobante', () => {
@@ -146,9 +162,92 @@ test('de la tabla etiquetada tampoco se extrae ningún dato identificatorio', ()
   }
 });
 
-test('el número de comprobante se tacha al guardar un correo no entendido', () => {
-  const censurado = p.censurarDatosPersonales(
-    'Número de comprobante TEFMBCO0000000000000000000000 y monto $185.000');
-  assert.equal(censurado.includes('TEFMBCO0000000000000000000000'), false);
-  assert.match(censurado, /\$185\.000/);
+
+// --- Transferencia enviada a terceros --------------------------------------
+//
+// Estructura del correo real, con TODOS los valores identificatorios
+// reemplazados por inventados. El cuerpo tiene que traer datos sensibles para
+// poder verificar que el lector no los extrae, pero ninguno es el verdadero.
+const TRANSFERENCIA_ENVIADA = {
+  asunto: 'Comprobante de Transferencia a terceros',
+  cuerpo: `Comprobante de Transferencia a terceros
+Estimado(a): Nombre Apellido
+Te informamos que has realizado una Transferencia a terceros en forma exitosa con el siguiente detalle:
+Origen
+Tipo de Cuenta 	Cuenta Corriente
+Nº de Cuenta 	00-000-00000-00
+Destino
+Nombre y Apellido 	Otra Persona Inventada
+Rut 	11111111-1
+Tipo de Cuenta 	Cuenta Vista
+Nº de Cuenta 	00-999-99999-99
+Banco 	Banco Ejemplo
+Email 	
+Monto 	$40.000
+Mensaje 	Arriendo depto
+
+ Fecha y Hora:
+
+martes 11 de agosto de 2026 17:08`,
+};
+
+test('transferencia enviada: monto, mensaje y fecha', () => {
+  const r = p.leerCorreo(TRANSFERENCIA_ENVIADA.asunto, TRANSFERENCIA_ENVIADA.cuerpo);
+  assert.ok(r, 'no reconoció el correo');
+  assert.equal(r.tipo, 'gasto', 'la plata sale de la cuenta, es un gasto');
+  assert.equal(r.monto, 40000);
+  assert.equal(r.moneda, 'CLP');
+  assert.equal(r.montoClp, 40000);
+  assert.equal(r.medioPago, 'transferencia');
+  assert.equal(r.fechaHora, '2026-08-11T17:08');
+});
+
+// Esta prueba existe por un error real de este proyecto. Una versión anterior
+// del lector tomaba el campo Mensaje y lo usaba como nombre de comercio, y en
+// un correo real ese mensaje era la dirección de una vivienda:
+// iba a escribirse en la hoja, en el aprendizaje, en Telegram y en el respaldo.
+// El mensaje es texto libre escrito para un tercero. No se lee, nunca.
+test('el mensaje de la transferencia no se lee jamás', () => {
+  const conDireccion = TRANSFERENCIA_ENVIADA.cuerpo
+    .replace('Arriendo depto', 'Depto 000 Calle Inventada, Juan Perez, +56900000000');
+  const r = p.leerCorreo(TRANSFERENCIA_ENVIADA.asunto, conDireccion);
+
+  assert.equal(r.comercio, 'Transferencia enviada');
+  const serializado = JSON.stringify(r);
+  for (const dato of ['Depto', 'Calle Inventada', 'Juan', 'Perez', '56900000000']) {
+    assert.equal(serializado.includes(dato), false, `se filtró del mensaje: ${dato}`);
+  }
+});
+
+test('transferencia enviada: no queda ningún dato del destinatario', () => {
+  const r = p.leerCorreo(TRANSFERENCIA_ENVIADA.asunto, TRANSFERENCIA_ENVIADA.cuerpo);
+  const serializado = JSON.stringify(r);
+  for (const dato of ['11111111-1', '00-000-00000-00', '00-999-99999-99',
+    'Otra', 'Persona', 'Inventada', 'Banco Ejemplo', 'Cuenta Vista', 'Arriendo']) {
+    assert.equal(serializado.includes(dato), false, `se filtró un dato sensible: ${dato}`);
+  }
+});
+
+test('la fecha escrita con el mes en palabras se convierte a formato ordenable', () => {
+  assert.equal(p.normalizarFechaLarga('11', 'agosto', '2026', '17:08'), '2026-08-11T17:08');
+  assert.equal(p.normalizarFechaLarga('1', 'enero', '2027', '9:05'), '2027-01-01T09:05');
+  assert.equal(p.normalizarFechaLarga('30', 'Septiembre', '2026', null), '2026-09-30');
+  assert.equal(p.normalizarFechaLarga('30', 'setiembre', '2026', null), '2026-09-30');
+  assert.equal(p.normalizarFechaLarga('5', 'nosequé', '2026', '10:00'), null);
+});
+
+// Los dos correos hablan de transferencias y traen la palabra "Monto". Si el
+// asunto no los separara, una enviada se registraría como plata que entró.
+test('no se confunde una transferencia enviada con una recibida', () => {
+  const enviada = p.leerCorreo(TRANSFERENCIA_ENVIADA.asunto, TRANSFERENCIA_ENVIADA.cuerpo);
+  assert.equal(enviada.tipo, 'gasto');
+
+  const recibida = p.leerCorreo(TRANSFERENCIA.asunto, TRANSFERENCIA.cuerpo);
+  assert.equal(recibida.tipo, 'entrada');
+
+  assert.equal(p.leerTransferenciaEnviada(TRANSFERENCIA.asunto, TRANSFERENCIA.cuerpo), null);
+  assert.equal(
+    p.leerTransferenciaRecibida(TRANSFERENCIA_ENVIADA.asunto, TRANSFERENCIA_ENVIADA.cuerpo),
+    null
+  );
 });

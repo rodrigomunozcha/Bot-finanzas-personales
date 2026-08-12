@@ -19,15 +19,17 @@ if (typeof require !== 'undefined' && typeof module !== 'undefined') {
   var _parsers = require('./parsers.js');
   globalThis.normalizarTexto = _parsers.normalizarTexto;
   globalThis.normalizarMonto = _parsers.normalizarMonto;
+  globalThis.MESES = _parsers.MESES;
+  globalThis.soloCamposDelPago = _parsers.soloCamposDelPago;
 }
 
 var ASUNTO_PAGO_TARJETA = /comprobante pago tarjeta de cr[eé]dito internacional/i;
 
-var MESES = {
-  enero: '01', febrero: '02', marzo: '03', abril: '04', mayo: '05', junio: '06',
-  julio: '07', agosto: '08', septiembre: '09', octubre: '10', noviembre: '11',
-  diciembre: '12',
-};
+// La tabla de meses vive en parsers.js. Aca hubo una copia identica, y en Apps
+// Script eso es una bomba: los dos archivos comparten el mismo ambito global,
+// asi que la segunda declaracion pisaba a la primera y cual ganaba dependia del
+// orden de carga. Mientras las dos copias dijeron lo mismo no se noto nada. Una
+// sola tabla, en un solo lugar.
 
 // "Utilizado" es cuanto queda usado en la tarjeta DESPUES del pago. En cero
 // significa que se salda todo, y por lo tanto se pueden cerrar todas las
@@ -54,7 +56,11 @@ function leerPagoTarjeta(asunto, cuerpo) {
   var mUtilizado = RE_UTILIZADO.exec(texto);
   var utilizado = mUtilizado ? normalizarMonto(mUtilizado[1], 'USD') : null;
 
-  return {
+  // Pasa por el colador igual que los demas lectores. Hoy este correo no trae
+  // nada mas que numeros y una fecha, pero era el unico camino desde un correo
+  // hacia el sistema que no tenia lista blanca, y un camino sin guardia se
+  // termina usando.
+  return soloCamposDelPago({
     tipo: 'movimiento_interno',
     montoUsd: montoUsd,
     montoClp: montoClp,
@@ -67,7 +73,7 @@ function leerPagoTarjeta(asunto, cuerpo) {
 
     saldaTodo: utilizado === 0,
     fechaHora: fechaLargaAIso(texto),
-  };
+  });
 }
 
 function fechaLargaAIso(texto) {

@@ -114,9 +114,12 @@ test('transferencia recibida: reembolso no cuenta como ingreso', () => {
     'Email Banco Cuenta destino Nombre Apellido 11111111-1 correo@example.com ' +
     'Banco Chile/Edwards Cuenta Corriente 00-000-00000-00 Monto $185.000');
 
+  // El mensaje dice el monto y la fecha, y nada más. Ni de quién viene, ni la
+  // glosa que esa persona escribió: los dos son datos de un tercero.
   const texto = e.ultimoTexto();
-  assert.match(texto, /\$185\.000 de Jessica/);
-  assert.match(texto, /Maleta y taxi/);
+  assert.match(texto, /\$185\.000/);
+  assert.equal(texto.includes('Jessica'), false, 'no se nombra a quien envía');
+  assert.equal(texto.includes('Maleta y taxi'), false, 'no se muestra su glosa');
   assert.equal(texto.includes('11111111-1'), false, 'no se filtra el RUT al chat');
 
   e.apretar('🔄 Es un reembolso');
@@ -185,4 +188,78 @@ test('la nota se pide por botón y se guarda con el siguiente mensaje', () => {
 
   e.contexto.manejarTexto('el asado del domingo');
   assert.equal(e.movimiento().nota, 'el asado del domingo');
+});
+
+// Estructura del correo real, con los datos del destinatario inventados.
+const TRANSFERENCIA_ENVIADA = `Comprobante de Transferencia a terceros
+Estimado(a): Nombre Apellido
+Te informamos que has realizado una Transferencia a terceros en forma exitosa con el siguiente detalle:
+Origen
+Tipo de Cuenta 	Cuenta Corriente
+Nº de Cuenta 	00-000-00000-00
+Destino
+Nombre y Apellido 	Otra Persona Inventada
+Rut 	11111111-1
+Tipo de Cuenta 	Cuenta Vista
+Nº de Cuenta 	00-999-99999-99
+Banco 	Banco Ejemplo
+Email 	
+Monto 	$40.000
+Mensaje 	Arriendo depto
+
+ Fecha y Hora:
+
+martes 11 de agosto de 2026 17:08`;
+
+test('transferencia enviada: se pregunta como gasto y se guarda', () => {
+  const e = crearEntorno();
+  entra(e, 'Comprobante de Transferencia a terceros', TRANSFERENCIA_ENVIADA);
+
+  assert.match(e.ultimoTexto(), /Transferencia enviada/);
+  assert.match(e.ultimoTexto(), /\$40\.000/);
+  assert.match(e.ultimoTexto(), /¿Qué categoría\?/,
+    'sin nombre real de comercio, siempre sale la lista completa');
+
+  e.apretar('🏠 Hogar');
+  e.apretar('Guardar sin subcategoría');
+
+  const mov = e.movimiento();
+  assert.equal(mov.tipo, 'gasto', 'la plata sale, no es una entrada');
+  assert.equal(mov.monto, 40000);
+  assert.equal(mov.medioPago, 'transferencia');
+  assert.equal(mov.categoria, '🏠 Hogar');
+  assert.equal(mov.estado, 'cerrado');
+});
+
+// Todas las transferencias comparten nombre, así que sin este bloqueo la
+// tercera y todas las siguientes se clasificarían solas con la categoría de las
+// anteriores. Una al arriendo y una a un amigo quedarían juntas, en silencio.
+test('una transferencia nunca se aprende: pregunta siempre', () => {
+  const e = crearEntorno();
+
+  for (let i = 1; i <= 4; i++) {
+    entra(e, 'Comprobante de Transferencia a terceros', TRANSFERENCIA_ENVIADA,
+      'transferencia-' + i);
+    assert.match(e.ultimoTexto(), /¿Qué categoría\?/,
+      `la transferencia ${i} dejó de preguntar`);
+    e.apretar('🏠 Hogar');
+    e.apretar('Guardar sin subcategoría');
+  }
+
+  const aprendidos = e.hojas.aprendizaje._filas.slice(1);
+  assert.equal(aprendidos.length, 0,
+    'no puede quedar ninguna fila de aprendizaje para una transferencia');
+});
+
+test('del destinatario de una transferencia no queda nada en la hoja', () => {
+  const e = crearEntorno();
+  entra(e, 'Comprobante de Transferencia a terceros', TRANSFERENCIA_ENVIADA);
+  e.apretar('🏠 Hogar');
+  e.apretar('Guardar sin subcategoría');
+
+  const escrito = JSON.stringify(e.hojas.movimientos._filas);
+  for (const dato of ['11111111-1', '00-999-99999-99', 'Otra', 'Inventada',
+    'Banco Ejemplo']) {
+    assert.equal(escrito.includes(dato), false, `quedó guardado en la hoja: ${dato}`);
+  }
 });

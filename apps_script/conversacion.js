@@ -74,30 +74,33 @@ function anunciarGasto(lectura, correoId) {
   });
 }
 
-/** Anuncia una transferencia recibida. Primero hay que saber si es ingreso. */
+/**
+ * Anuncia una transferencia recibida. Primero hay que saber si es ingreso.
+ *
+ * Antes este mensaje decia de quien venia la plata y para que era, sacados del
+ * correo. Los dos datos se dejaron de leer: el nombre es de una persona que no
+ * eligio estar aca, y el texto que escribio es libre. Ahora solo se ve el monto
+ * y la fecha, y quien reconoce la transferencia eres tu.
+ */
 function anunciarEntrada(lectura, correoId) {
   var id = nuevoId();
   var mov = {
     id: id,
     fechaHora: lectura.fechaHora,
     tipo: 'entrada',
-    comercio: lectura.remitente || 'Transferencia',
+    comercio: lectura.comercio,
     monto: lectura.monto,
     moneda: lectura.moneda,
     montoClp: lectura.montoClp,
     medioPago: 'transferencia',
-    nota: lectura.glosa,
     estado: ESTADOS.ESPERANDO_TIPO_ENTRADA,
     correoId: correoId,
   };
-  mov.remitente = lectura.remitente;
 
   mov.mensajeId = tgEnviar(
     encabezado(mov) + '\n\n¿Es plata que ganaste, o te están devolviendo algo?',
     tecladoEntrada(id)
   );
-  // remitente no es columna de la hoja: solo sirve para redactar el mensaje.
-  delete mov.remitente;
   registrarMovimiento(mov);
   return id;
 }

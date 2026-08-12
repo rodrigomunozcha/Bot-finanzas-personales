@@ -17,6 +17,33 @@
 var CONFIRMACIONES_PARA_AUTOMATICO = 3;
 
 /**
+ * Nombres que NO son un comercio, sino una etiqueta puesta por el sistema.
+ *
+ * El aprendizaje da por hecho que un mismo nombre significa un mismo tipo de
+ * gasto. Con "JUMBO CENTRAL" eso es cierto. Con "Transferencia enviada" es falso
+ * y ademas peligroso: a la tercera transferencia clasificada igual, todas las
+ * siguientes se clasificarian solas con esa categoria, sin preguntar y sin que
+ * se note. Una transferencia al arriendo y una a un amigo quedarian juntas, en
+ * silencio, y eso es peor que preguntar de mas.
+ *
+ * La forma obvia de arreglarlo seria distinguirlas por el mensaje que trae el
+ * correo. No se puede: ese mensaje es texto libre escrito para la persona que
+ * recibe la plata, y suele traer direcciones o nombres. Ver el comentario largo
+ * de leerTransferenciaEnviada en parsers.js.
+ *
+ * Entonces estas preguntan siempre. Son pocas al mes y son tres toques.
+ */
+var COMERCIOS_GENERICOS = [
+  'TRANSFERENCIA ENVIADA',
+  'TRANSFERENCIA RECIBIDA',
+];
+
+/** true si este nombre es una etiqueta del sistema y no un comercio real. */
+function esComercioGenerico(comercioBruto) {
+  return COMERCIOS_GENERICOS.indexOf(normalizarComercio(comercioBruto)) >= 0;
+}
+
+/**
  * Los comercios llegan del banco con sufijos que cambian entre compras y que
  * romperian el aprendizaje: numero de local, ciudad, codigos internos.
  * "JUMBO CENTRAL 0111" y "JUMBO CENTRAL" deben contar como el mismo comercio.
@@ -38,6 +65,11 @@ function normalizarComercio(bruto) {
  */
 function proponerClasificacion(comercioBruto, aprendizaje) {
   var comercio = normalizarComercio(comercioBruto);
+
+  // Sin propuesta, para que salga la lista completa de categorias. Cualquier
+  // otra cosa seria adivinar a partir de transferencias que no tienen nada que
+  // ver entre si.
+  if (esComercioGenerico(comercio)) return null;
 
   var aprendido = aprendizaje[comercio];
   if (aprendido) {
@@ -73,6 +105,13 @@ function proponerClasificacion(comercioBruto, aprendizaje) {
  */
 function registrarRespuesta(aprendizaje, comercioBruto, categoria, subcategoria) {
   var comercio = normalizarComercio(comercioBruto);
+
+  // Devolver null es lo que hace que no se guarde nada: quien llama solo
+  // escribe si recibe un registro. Se corta aca ademas de en
+  // proponerClasificacion porque son dos caminos distintos, y bloquear solo la
+  // propuesta dejaria la tabla llenandose igual.
+  if (esComercioGenerico(comercio)) return null;
+
   var previo = aprendizaje[comercio];
 
   var mismaEleccion = previo &&
@@ -103,6 +142,7 @@ if (typeof module !== 'undefined') {
   }
   module.exports = {
     normalizarComercio, proponerClasificacion, registrarRespuesta,
-    faltanParaAutomatico, CONFIRMACIONES_PARA_AUTOMATICO,
+    faltanParaAutomatico, esComercioGenerico,
+    CONFIRMACIONES_PARA_AUTOMATICO, COMERCIOS_GENERICOS,
   };
 }

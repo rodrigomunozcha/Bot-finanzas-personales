@@ -99,6 +99,7 @@ function crearEntorno(propiedades = {}) {
   let siguienteMensaje = 100;
   const porEntregar = [];   // avisos que Telegram tiene para entregar
   const graficos = [];      // graficos que el codigo pidio dibujar
+  const activadores = [];   // activadores programados, sin ejecutar nada
 
   // Reloj controlable: las tandas rapidas duran casi un minuto y las pruebas no
   // pueden esperar eso de verdad.
@@ -183,6 +184,37 @@ function crearEntorno(propiedades = {}) {
       getUuid: () => 'uuid-falso',
       // Sin espera real: las pruebas no pueden tardar lo que tarda el bot.
       sleep: (ms) => { relojFalso.avanzar(ms); },
+    },
+    /**
+     * Activadores programados. Se guardan en una lista y nada corre de verdad.
+     *
+     * Existe para que revisarSalud() e instalar() se puedan probar: las dos
+     * consultan los activadores del proyecto, y sin este doble reventaban con
+     * "ScriptApp is not defined" antes de llegar a lo que se queria verificar.
+     */
+    ScriptApp: {
+      getProjectTriggers: () => activadores.slice(),
+      deleteTrigger(t) {
+        const i = activadores.indexOf(t);
+        if (i >= 0) activadores.splice(i, 1);
+      },
+      newTrigger(funcion) {
+        const constructor = {
+          timeBased: () => constructor,
+          everyMinutes: () => constructor,
+          everyDays: () => constructor,
+          onWeekDay: () => constructor,
+          onMonthDay: () => constructor,
+          atHour: () => constructor,
+          create() {
+            const t = { getHandlerFunction: () => funcion };
+            activadores.push(t);
+            return t;
+          },
+        };
+        return constructor;
+      },
+      WeekDay: { SUNDAY: 'SUNDAY' },
     },
     UrlFetchApp: {
       fetch(url, opciones) {

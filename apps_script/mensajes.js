@@ -12,8 +12,10 @@ function encabezado(mov) {
 
   if (mov.tipo === 'entrada' || mov.tipo === 'ingreso') {
     lineas.push('💸 <b>Transferencia recibida</b>');
+    // Sin nombre de quien envia: ese dato ya no se lee del correo. La nota que
+    // se muestra es la que escribiste tu, no la glosa que venia en el correo.
     lineas.push(formatearMonto(mov.monto, mov.moneda) +
-      (mov.remitente ? ' de ' + tgEscapar(mov.remitente) : ''));
+      (mov.fechaHora ? ' · ' + formatearFecha(mov.fechaHora) : ''));
     if (mov.nota) lineas.push('<i>' + tgEscapar(mov.nota) + '</i>');
   } else {
     lineas.push('<b>' + tgEscapar(mov.comercio) + '</b>');

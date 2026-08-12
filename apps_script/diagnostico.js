@@ -9,6 +9,7 @@
  *   verUltimosMovimientos()  que quedo escrito en la hoja
  *   mostrarMiChatId()        solo hace falta al instalar
  *   reanudar()               levanta el freno si el bot quedo mudo
+ *   limpiarContenidoDeCorreosGuardado()  borra los textos de correo viejos
  */
 
 /**
@@ -23,6 +24,24 @@ function reportar(lineas) {
   var texto = lineas.join('\n');
   console.log(texto);
   throw new Error('\n\n===== RESULTADO (no es una falla) =====\n' + texto + '\n');
+}
+
+/**
+ * Deja un valor guardado en algo que se puede mostrar y pegar en un chat.
+ *
+ * De un valor largo se muestran los cuatro primeros caracteres, que sirven para
+ * distinguir un token de otro cuando tienes dos bots y no sabes cual quedo
+ * puesto. De uno corto no se muestra ninguno: de un chat id de diez digitos,
+ * cuatro ya son medio identificador.
+ *
+ * El largo si se muestra siempre, y es lo que mas ayuda: un token de Telegram
+ * son 46 caracteres, y si dice 45 es que se perdio uno al copiar.
+ */
+function tapar(valor) {
+  var v = String(valor);
+  var unidad = v.length === 1 ? ' caracter' : ' caracteres';
+  return (v.length > 20 ? v.substring(0, 4) + '…' : '•••') +
+    ' (' + v.length + unidad + ')';
 }
 
 /**
@@ -68,15 +87,22 @@ function revisarSalud() {
   var lineas = [];
 
   // --- Configuracion ---
+  //
+  // Los tres valores van tapados. Antes solo se tapaba el token, y el chat id y
+  // el identificador de la hoja salian enteros. Esta pantalla es justo la que
+  // uno copia y pega cuando pide ayuda con algo que no anda, asi que lo que
+  // muestre se va a repartir: no puede mostrar identificadores de nadie.
+  //
+  // Tapados siguen sirviendo para lo unico que hacen falta aca: saber si estan
+  // puestos, si tienen el largo que corresponde, y si se colo un espacio al
+  // copiarlos.
   lineas.push('CONFIGURACIÓN');
-  var secretas = { TELEGRAM_TOKEN: true };
   ['TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID', 'HOJA_ID'].forEach(function (clave) {
     var v = guardadas[clave];
     if (!v) {
       lineas.push('  FALTA: ' + clave);
     } else {
-      lineas.push('  ' + clave + ' = ' +
-        (secretas[clave] ? v.substring(0, 4) + '… (' + v.length + ' caracteres)' : v));
+      lineas.push('  ' + clave + ' = ' + tapar(v));
       if (v !== v.trim()) lineas.push('    OJO: tiene espacios sobrantes.');
     }
   });
@@ -127,8 +153,22 @@ function revisarSalud() {
     (pendientes ? '  (usa /pendientes en el bot)' : ''));
   lineas.push('  comercios aprendidos: ' +
     Math.max(0, hoja(HOJA_APRENDIZAJE).getLastRow() - 1));
+  var noEntendidos = hoja(HOJA_NO_ENTENDIDOS);
   lineas.push('  correos no entendidos: ' +
-    Math.max(0, hoja(HOJA_NO_ENTENDIDOS).getLastRow() - 1));
+    Math.max(0, noEntendidos.getLastRow() - 1));
+
+  // Hasta cierta version se guardaba un extracto del cuerpo de esos correos, y
+  // el censor de entonces no tachaba nombres ni direcciones. Si quedan filas de
+  // esa epoca hay que decirlo aca y decir exactamente que hacer: quien lee esto
+  // no tiene por que saber que funcion existe ni como se llama.
+  if (textosDeCorreoGuardados(noEntendidos)) {
+    lineas.push('');
+    lineas.push('  ⚠️  HAY TEXTO DE CORREOS GUARDADO DE ANTES');
+    lineas.push('  Esas filas pueden traer nombres y direcciones que el');
+    lineas.push('  sistema de hoy ya no guarda, pero que quedaron escritas.');
+    lineas.push('  Para borrarlas: arriba, en el selector de funciones, elige');
+    lineas.push('  limpiarContenidoDeCorreosGuardado y aprieta Ejecutar.');
+  }
 
   // --- Bitacora ---
   lineas.push('');
@@ -204,8 +244,15 @@ function mostrarMiChatId() {
       (u.callback_query && u.callback_query.message.chat) ||
       (u.my_chat_member && u.my_chat_member.chat);
     if (chat) {
+      // Aca el numero se muestra entero porque es justo lo que se viene a
+      // buscar. Por eso mismo lleva el aviso: es el unico lugar del sistema que
+      // lo enseña, y quien lo lee tiene que saber que no se pega en cualquier
+      // parte.
       reportar(['>>> TU CHAT ID ES: ' + chat.id + ' <<<',
-        'Guárdalo en la propiedad TELEGRAM_CHAT_ID.']);
+        'Guárdalo en la propiedad TELEGRAM_CHAT_ID.',
+        '',
+        'Ese número es tuyo y no se comparte. Si alguna vez pides ayuda con',
+        'una captura de pantalla, esta es la única que conviene no mandar.']);
     }
   }
 
@@ -287,6 +334,81 @@ function actualizarMenu() {
     'Si en el teléfono sigues viendo el menú viejo, cierra el chat del bot y',
     'vuelve a abrirlo: Telegram guarda la lista y tarda en refrescarla.',
   ]));
+}
+
+/**
+ * true si la columna del enlace trae texto de correo de la epoca anterior.
+ *
+ * Se distingue por como empieza: lo que se guarda hoy es una direccion de Gmail,
+ * o la frase de respaldo cuando no se pudo armar el enlace. Cualquier otra cosa
+ * es cuerpo de correo guardado antes.
+ */
+function textosDeCorreoGuardados(h) {
+  if (h.getLastRow() < 2) return false;
+
+  var valores = h.getRange(2, 4, h.getLastRow() - 1, 1).getValues();
+  for (var i = 0; i < valores.length; i++) {
+    var v = String(valores[i][0] || '').trim();
+    if (!v) continue;
+    if (v.indexOf('https://mail.google.com') === 0) continue;
+    if (v.indexOf('Búscalo en Gmail') === 0) continue;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Borra el contenido de los correos que quedo guardado antes.
+ *
+ * Se corre una sola vez, a mano, y la corre el dueno de la cuenta. Hasta esta
+ * version, un correo que ningun lector reconocia se guardaba con un extracto de
+ * su cuerpo, pasado por un censor de expresiones regulares. Ese censor tachaba
+ * RUT, correos y numeros de cuenta, pero no los nombres de personas ni las
+ * direcciones, que no tienen forma reconocible. Asi que hay filas viejas con
+ * nombres propios y direcciones escritas.
+ *
+ * El sistema ya no guarda nada de eso, pero lo que quedo escrito no se va solo.
+ * Esto vacia la columna del extracto y deja el asunto y la fecha, que es lo
+ * unico que sirve para saber que formato falta.
+ *
+ * No borra filas ni toca los movimientos. Y no corre sola: es tu decision,
+ * sobre tus datos.
+ */
+function limpiarContenidoDeCorreosGuardado() {
+  var h = hoja(HOJA_NO_ENTENDIDOS);
+  if (h.getLastRow() < 2) {
+    reportar(['La hoja de correos no entendidos está vacía.',
+      'No hay nada guardado que limpiar.']);
+  }
+
+  var filas = h.getLastRow() - 1;
+  var columna = 4;
+  var rango = h.getRange(2, columna, filas, 1);
+
+  var borradas = rango.getValues().filter(function (f) {
+    return String(f[0] || '').trim() !== '';
+  }).length;
+
+  rango.setValue('');
+  h.getRange(1, columna).setValue('enlace');
+
+  reportar([
+    'Listo. Se borró el contenido guardado de ' + borradas +
+      (borradas === 1 ? ' correo.' : ' correos.'),
+    '',
+    'Quedaron el asunto y la fecha de las ' + filas +
+      (filas === 1 ? ' fila' : ' filas') + ', que es lo que sirve para saber',
+    'qué formato falta. Ningún movimiento fue tocado.',
+    '',
+    'FALTA UNA COSA MÁS, y esa va en tu Mac:',
+    'si ya respaldaste alguna vez, esos textos también están en',
+    'datos/finanzas.db y en el CSV. El respaldo nunca borra nada,',
+    'así que hay que rehacerlo desde cero:',
+    '',
+    '  1. Mueve datos/finanzas.db y datos/movimientos.csv a tu Escritorio',
+    '  2. Vuelve a descargar la hoja y corre respaldar.py',
+    '  3. Revisa los dos archivos del Escritorio y bórralos tú',
+  ]);
 }
 
 /**

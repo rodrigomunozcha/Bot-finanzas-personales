@@ -39,6 +39,22 @@ function revisarCorreo() {
   });
 }
 
+/**
+ * Enlace para abrir el correo en Gmail, sin copiar nada de su contenido.
+ *
+ * getPermalink() vive en el hilo, no en el mensaje. Va con try porque en las
+ * pruebas los correos son objetos simulados y porque un enlace que falta no
+ * puede costar el registro entero: en ese caso queda el identificador, que
+ * tambien sirve para buscarlo.
+ */
+function enlaceAlCorreo(mensaje) {
+  try {
+    return mensaje.getThread().getPermalink();
+  } catch (error) {
+    return 'Búscalo en Gmail por su asunto.';
+  }
+}
+
 function procesarMensaje(mensaje) {
   var correoId = mensaje.getId();
   if (correoYaRegistrado(correoId)) return;
@@ -51,13 +67,19 @@ function procesarMensaje(mensaje) {
 
   var lectura = leerCorreo(asunto, cuerpo);
   if (!lectura) {
-    // Nunca se descarta en silencio: un formato desconocido queda anotado con
-    // un extracto para poder agregarlo despues. Es preferible un vacio visible
-    // a un gasto perdido.
-    // El extracto va censurado: sirve para escribir despues el lector que
-    // falta, y para eso no hace falta guardar RUT ni numeros de cuenta.
-    registrarNoEntendido(asunto, correoId,
-      censurarDatosPersonales(normalizarTexto(cuerpo)).substring(0, 400));
+    // Nunca se descarta en silencio, pero tampoco se guarda el cuerpo.
+    //
+    // Antes se guardaba un extracto de 400 caracteres, pasado por un censor de
+    // expresiones regulares. No servia: el censor tachaba RUT, correos y
+    // numeros de cuenta, pero los nombres de personas y las direcciones no
+    // tienen forma reconocible y salian intactos. Verificado corriendolo.
+    //
+    // Ese extracto existia solo para escribir despues el lector que falta, o
+    // sea para comodidad de quien programa, no para que el sistema funcione. No
+    // vale guardar el correo de nadie por eso. Ahora queda el asunto y un
+    // enlace: quien instalo esto abre su propio correo, mira lo que hay, y
+    // decide que comparte.
+    registrarNoEntendido(asunto, correoId, enlaceAlCorreo(mensaje));
     return;
   }
 
@@ -164,8 +186,12 @@ function latidoDiario() {
   var yaAvisados = Number(propiedades.getProperty('NO_ENTENDIDOS_AVISADOS') || 0);
   if (noEntendidos > yaAvisados) {
     avisos.push('· <b>' + (noEntendidos - yaAvisados) + '</b> correos del banco que ' +
-      'no supe leer\n  Son gastos que no se están registrando. ' +
-      'Avísale a Rodrigo para agregar ese formato.');
+      'no supe leer\n' +
+      '  Son movimientos que no se están registrando, así que tus totales ' +
+      'quedan cortos.\n' +
+      '  De esos correos no guardé nada más que el asunto y un enlace. ' +
+      'Ábrelos con <code>/datos</code> y pásale el formato a quien mantenga ' +
+      'esto para que lo agregue.');
     propiedades.setProperty('NO_ENTENDIDOS_AVISADOS', String(noEntendidos));
   }
 
@@ -439,7 +465,8 @@ function instalar() {
     crearHoja(libro, HOJA_MOVIMIENTOS, COLUMNAS);
     crearHoja(libro, HOJA_APRENDIZAJE,
       ['comercio', 'categoria', 'subcategoria', 'confirmaciones', 'actualizado']);
-    crearHoja(libro, HOJA_NO_ENTENDIDOS, ['fecha', 'asunto', 'correoId', 'extracto']);
+    // La cuarta columna guarda un enlace al correo, nunca su contenido.
+    crearHoja(libro, HOJA_NO_ENTENDIDOS, ['fecha', 'asunto', 'correoId', 'enlace']);
     libro.deleteSheet(libro.getSheetByName('Hoja 1') || libro.getSheets()[0]);
     propiedades.setProperty('HOJA_ID', libro.getId());
   }
@@ -482,12 +509,19 @@ function instalar() {
   // Se reporta con reportar() y no con console.log por lo mismo que en
   // mostrarMiChatId: el registro de ejecucion cuesta encontrarlo y estos datos
   // hay que verlos si o si.
+  // El chat id se responde con si o no, no con el numero. Aca solo hace falta
+  // saber si el paso 7 ya se hizo, y este texto es de los que uno pega cuando
+  // pide ayuda porque algo no anda. La direccion de la planilla si va entera:
+  // es la unica forma de encontrarla la primera vez, porque los comandos del
+  // bot todavia no funcionan en este punto de la instalacion.
   reportar([
     'Instalación lista.',
     '',
     'Tu planilla: ' + SpreadsheetApp.openById(propiedades.getProperty('HOJA_ID')).getUrl(),
+    '  (esa dirección es tuya: guárdala, no la pegues por ahí)',
     'Etiquetas de Gmail: ' + ETIQUETA_PENDIENTE + ' y ' + ETIQUETA_PROCESADO,
-    'Chat id guardado: ' + (propiedades.getProperty('TELEGRAM_CHAT_ID') || 'FALTA (paso 7)'),
+    'Chat id guardado: ' +
+      (propiedades.getProperty('TELEGRAM_CHAT_ID') ? 'sí' : 'FALTA (paso 7)'),
     '',
     'Activadores (leídos del proyecto, no una lista escrita a mano):',
   ].concat(ScriptApp.getProjectTriggers().map(function (t) {
