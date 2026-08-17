@@ -31,8 +31,37 @@ var ASUNTOS = {
   COMPRA_DEBITO: /cargo en cuenta/i,
   COMPRA_CREDITO: /compra con tarjeta de cr[eé]dito/i,
   TRANSFERENCIA_RECIBIDA: /aviso de transferencia de fondos/i,
-  TRANSFERENCIA_ENVIADA: /comprobante de transferencia a terceros/i,
+  // El asunto real de Gmail es "Transferencia a Terceros", sin "Comprobante
+  // de". Ese prefijo aparece dentro del cuerpo del correo, como encabezado, y
+  // se confundio con el asunto al escribir este lector la primera vez.
+  // Verificado contra el asunto real guardado en la hoja de no entendidos.
+  TRANSFERENCIA_ENVIADA: /transferencia a terceros/i,
 };
+
+/**
+ * Asuntos de correos que el banco manda y que nunca son un movimiento.
+ *
+ * Un correo de aca no cae en la bandeja de no entendidos, porque no es un
+ * formato que falte agregar: es un correo entendido y descartado a proposito,
+ * distinto de uno que ningun lector reconoce todavia. La diferencia importa
+ * para quien instala esto, porque la bandeja de no entendidos existe para
+ * avisar de formatos que faltan, y estos no van a faltar nunca.
+ *
+ * "Notificación por modificar o agregar un destinatario" es la que aviso de
+ * seguridad que manda el banco cuando agregas o cambias a quien le puedes
+ * transferir. No trae monto ni es un gasto, asi que no hay nada que registrar.
+ */
+var ASUNTOS_IGNORADOS = [
+  /notificaci[oó]n por modificar o agregar un destinatario/i,
+];
+
+/** true si el asunto es de un correo que se descarta a proposito. */
+function esCorreoIgnorado(asunto) {
+  var texto = String(asunto || '');
+  return ASUNTOS_IGNORADOS.some(function (patron) {
+    return patron.test(texto);
+  });
+}
 
 /**
  * Deja el cuerpo del correo en una sola linea de texto plano.
@@ -112,7 +141,12 @@ function dosDigitos(numero) {
   return s.length < 2 ? '0' + s : s;
 }
 
-function normalizarFechaLarga(dia, mes, anio, hora) {
+/**
+ * "ampm" viene del correo cuando la hora esta en formato de 12, algo como
+ * "a. m." o "p. m.". Si no viene, se asume que "hora" ya esta en formato de
+ * 24, que es como llega en los correos que no dicen a.m./p.m.
+ */
+function normalizarFechaLarga(dia, mes, anio, hora, ampm) {
   var numeroMes = MESES[String(mes).toLowerCase()];
   if (!numeroMes) return null;
 
@@ -120,7 +154,17 @@ function normalizarFechaLarga(dia, mes, anio, hora) {
   if (!hora) return iso;
 
   var partes = String(hora).split(':');
-  return iso + 'T' + dosDigitos(partes[0]) + ':' + partes[1];
+  var horas = Number(partes[0]);
+
+  if (ampm) {
+    var esTarde = /^p/i.test(ampm);
+    // Mediodia (12 p.m.) se queda en 12. Medianoche (12 a.m.) pasa a 0. El
+    // resto de las horas de la tarde suman 12.
+    if (esTarde && horas !== 12) horas += 12;
+    if (!esTarde && horas === 12) horas = 0;
+  }
+
+  return iso + 'T' + dosDigitos(horas) + ':' + partes[1];
 }
 
 /**
@@ -252,12 +296,23 @@ function leerTransferenciaRecibida(asunto, cuerpo) {
  * lo unico seguro con texto libre de terceros es no leerlo.
  */
 
-// "Fecha y Hora: martes 11 de agosto de 2026 17:08". El dia de la semana se
-// salta sin capturarlo, y la hora es opcional por si algun correo no la trae.
+/**
+ * El banco escribe esta fecha de dos formas distintas segun el correo, y las
+ * dos son reales: se vieron el mismo dia en dos transferencias de verdad.
+ *
+ *   "martes 11 de agosto de 2026 17:08"              (sin coma, 24 horas)
+ *   "Sábado, 15 de agosto de 2026, 9:33 a. m."        (con coma, 12 horas)
+ *
+ * El dia de la semana se salta sin capturarlo, admitiendo que venga con coma
+ * despues o sin ella. Lo mismo con la coma antes de la hora. La hora admite
+ * los dos formatos: sola ("17:08") o seguida de "a. m." / "p. m." con o sin
+ * los puntos.
+ */
 var RE_FECHA_ESCRITA = new RegExp(
-  'Fecha y Hora:?\\s*(?:[a-záéíóúñ]+\\s+)?' +
+  'Fecha y Hora:?\\s*(?:[a-záéíóúñ]+\\.?,?\\s+)?' +
   '(\\d{1,2})\\s+de\\s+([a-záéíóúñ]+)\\s+de\\s+(\\d{4})' +
-  '(?:\\s+(\\d{1,2}:\\d{2}))?',
+  ',?\\s*' +
+  '(?:(\\d{1,2}:\\d{2})\\s*(a\\.?\\s*m\\.?|p\\.?\\s*m\\.?)?)?',
   'i'
 );
 
@@ -286,7 +341,7 @@ function leerTransferenciaEnviada(asunto, cuerpo) {
     medioPago: 'transferencia',
     comercio: COMERCIO_TRANSFERENCIA_ENVIADA,
     fechaHora: mFecha
-      ? normalizarFechaLarga(mFecha[1], mFecha[2], mFecha[3], mFecha[4])
+      ? normalizarFechaLarga(mFecha[1], mFecha[2], mFecha[3], mFecha[4], mFecha[5])
       : null,
   };
 }
@@ -371,7 +426,7 @@ function leerCorreo(asunto, cuerpo) {
 if (typeof module !== 'undefined') {
   module.exports = {
     leerCorreo, leerCompra, leerTransferenciaRecibida, leerTransferenciaEnviada,
-    soloCamposPermitidos, soloCamposDelPago,
+    soloCamposPermitidos, soloCamposDelPago, esCorreoIgnorado,
     CAMPOS_PERMITIDOS, CAMPOS_PERMITIDOS_PAGO,
     normalizarMonto, normalizarTexto, normalizarFecha, normalizarFechaLarga,
     detectarMoneda, MESES,

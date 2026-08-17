@@ -82,7 +82,10 @@ const CORREOS = [
   },
   {
     nombre: 'transferencia enviada',
-    asunto: 'Comprobante de Transferencia a terceros',
+    // El asunto real de Gmail no lleva "Comprobante de": eso es un encabezado
+    // que va dentro del cuerpo. Se descubrió porque con el asunto viejo
+    // ninguna transferencia enviada se reconocía nunca.
+    asunto: 'Transferencia a Terceros',
     cuerpo: `Comprobante de Transferencia a terceros
 Estimado(a): Nombre Inventado
 Te informamos que has realizado una Transferencia a terceros en forma exitosa con el siguiente detalle:

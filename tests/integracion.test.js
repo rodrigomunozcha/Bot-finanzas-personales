@@ -213,7 +213,7 @@ martes 11 de agosto de 2026 17:08`;
 
 test('transferencia enviada: se pregunta como gasto y se guarda', () => {
   const e = crearEntorno();
-  entra(e, 'Comprobante de Transferencia a terceros', TRANSFERENCIA_ENVIADA);
+  entra(e, 'Transferencia a Terceros', TRANSFERENCIA_ENVIADA);
 
   assert.match(e.ultimoTexto(), /Transferencia enviada/);
   assert.match(e.ultimoTexto(), /\$40\.000/);
@@ -231,6 +231,41 @@ test('transferencia enviada: se pregunta como gasto y se guarda', () => {
   assert.equal(mov.estado, 'cerrado');
 });
 
+// El banco manda la fecha de otra forma en algunos correos: con comas y en
+// 12 horas con a. m. / p. m., en vez de sin comas y en 24 horas como el bloque
+// de arriba. Las dos formas son reales, vistas el mismo mes en transferencias
+// distintas, y la primera versión de este lector solo entendía la de arriba.
+test('transferencia enviada: también se reconoce con fecha en 12 horas y comas', () => {
+  const e = crearEntorno();
+  const cuerpo = `Comprobante de Transferencia a terceros
+Estimado(a): Nombre Inventado
+Te informamos que has realizado una Transferencia a terceros en forma exitosa con el siguiente detalle:
+Monto 	$8.950
+Mensaje 	Algo
+
+Fecha y Hora:
+
+Sábado, 15 de agosto de 2026, 9:33 a. m.
+
+Transacción
+
+TEFMBCO0000000000000000000000`;
+
+  entra(e, 'Transferencia a Terceros', cuerpo);
+  assert.match(e.ultimoTexto(), /\$8\.950/);
+
+  e.apretar('🏠 Hogar');
+  e.apretar('Guardar sin subcategoría');
+
+  const mov = e.movimiento();
+  assert.equal(mov.monto, 8950);
+  // La conversión exacta del texto a las 09:33 (y no a las 21:33) ya se prueba
+  // en parsers.test.js sin pasar por un objeto Date, que interpreta la hora en
+  // la zona del proceso que corre las pruebas y no en la del banco. Acá solo
+  // importa que el correo se haya reconocido y guardado.
+  assert.ok(mov.fechaHora, 'la fecha se guardó, no quedó vacía');
+});
+
 // Todas las transferencias comparten nombre, así que sin este bloqueo la
 // tercera y todas las siguientes se clasificarían solas con la categoría de las
 // anteriores. Una al arriendo y una a un amigo quedarían juntas, en silencio.
@@ -238,7 +273,7 @@ test('una transferencia nunca se aprende: pregunta siempre', () => {
   const e = crearEntorno();
 
   for (let i = 1; i <= 4; i++) {
-    entra(e, 'Comprobante de Transferencia a terceros', TRANSFERENCIA_ENVIADA,
+    entra(e, 'Transferencia a Terceros', TRANSFERENCIA_ENVIADA,
       'transferencia-' + i);
     assert.match(e.ultimoTexto(), /¿Qué categoría\?/,
       `la transferencia ${i} dejó de preguntar`);
@@ -253,7 +288,7 @@ test('una transferencia nunca se aprende: pregunta siempre', () => {
 
 test('del destinatario de una transferencia no queda nada en la hoja', () => {
   const e = crearEntorno();
-  entra(e, 'Comprobante de Transferencia a terceros', TRANSFERENCIA_ENVIADA);
+  entra(e, 'Transferencia a Terceros', TRANSFERENCIA_ENVIADA);
   e.apretar('🏠 Hogar');
   e.apretar('Guardar sin subcategoría');
 
@@ -262,4 +297,18 @@ test('del destinatario de una transferencia no queda nada en la hoja', () => {
     'Banco Ejemplo']) {
     assert.equal(escrito.includes(dato), false, `quedó guardado en la hoja: ${dato}`);
   }
+});
+
+// El banco manda avisos de seguridad que no son un movimiento, como cuando se
+// agrega un destinatario nuevo a quien transferir. No hay nada que registrar
+// ahí, y no deben llenar la bandeja de no entendidos: esa bandeja es para
+// avisar de formatos que faltan, y este correo nunca va a "faltar".
+test('un aviso de seguridad del banco se ignora, no cae en no entendidos', () => {
+  const e = crearEntorno();
+  entra(e, 'Notificación por modificar o agregar un destinatario para transferencias',
+    'Se agregó un nuevo destinatario a tu cuenta.');
+
+  assert.equal(e.movimiento(), null, 'no es un movimiento');
+  const [, ...noEntendidos] = e.hojas.no_entendidos._filas;
+  assert.equal(noEntendidos.length, 0, 'tampoco debe quedar como no entendido');
 });

@@ -284,15 +284,22 @@ function explicarIngreso() {
  * Se parte de un saldo que el usuario declara y se le suman y restan los
  * movimientos que de verdad tocan la cuenta. Las reglas no son obvias:
  *
- *   compra con debito     sale de la cuenta al instante        resta
- *   compra con credito    NO sale hasta que se paga la tarjeta  no mueve nada
- *   pago de la tarjeta    ahi si sale                           resta
- *   giro por cajero       sale de la cuenta, va al bolsillo     resta
- *   gasto en efectivo     ya habia salido en el giro            no mueve nada
- *   ingreso o reembolso   entra                                 suma
+ *   compra con debito       sale de la cuenta al instante        resta
+ *   transferencia que envias sale de la cuenta al instante       resta
+ *   compra con credito      NO sale hasta que se paga la tarjeta  no mueve nada
+ *   pago de la tarjeta      ahi si sale                           resta
+ *   giro por cajero         sale de la cuenta, va al bolsillo     resta
+ *   gasto en efectivo       ya habia salido en el giro            no mueve nada
+ *   ingreso o reembolso     entra                                 suma
  *
  * Contar la compra con credito Y el pago de la tarjeta seria restar dos veces
  * la misma plata, que es el error clasico al llevar cuentas a mano.
+ *
+ * La transferencia que envias se agrego despues del lector de transferencias
+ * enviadas, y quedo afuera la primera vez: solo se restaba el debito, y una
+ * transferencia enviada de verdad no se conto en su saldo hasta que el mismo
+ * lo noto pidiendo /saldo y viendo el numero mal. Las dos salen de la cuenta
+ * en el momento, asi que las dos restan igual.
  */
 function calcularSaldo() {
   var propiedades = PropertiesService.getScriptProperties();
@@ -319,7 +326,10 @@ function calcularSaldo() {
     if (m.tipo === 'ingreso') entradas += clp;
     else if (m.tipo === 'giro') salidas += clp;
     else if (m.tipo === 'interno') salidas += clp;    // pago de la tarjeta
-    else if (m.tipo === 'gasto' && m.medioPago === 'debito') salidas += clp;
+    else if (m.tipo === 'gasto' &&
+      (m.medioPago === 'debito' || m.medioPago === 'transferencia')) {
+      salidas += clp;
+    }
     // credito, efectivo, entrada sin resolver y reembolso no mueven la cuenta
   });
 

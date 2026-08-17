@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { crearEntorno } = require('./ayuda/entorno.js');
+const { MESES } = require('../apps_script/parsers.js');
 
 const nuevos = (e) => e.enviados.filter((x) => x.metodo === 'sendMessage');
 
@@ -10,6 +11,23 @@ function manana() {
   d.setDate(d.getDate() + 1);
   const dd = (n) => String(n).padStart(2, '0');
   return `${dd(d.getDate())}/${dd(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+// El nombre del mes en letras, para el formato de fecha de la transferencia
+// enviada ("11 de agosto de 2026"). Se saca de la misma tabla que usa el
+// lector, en vez de escribirlo aparte, para no desviarse si mañana cae en otro
+// mes: fijar "agosto" a mano habría hecho fallar la prueba el día que alguien
+// la corriera un 31 de un mes distinto.
+function nombreDelMes(d) {
+  const numero = String(d.getMonth() + 1).padStart(2, '0');
+  return Object.keys(MESES).find((nombre) => MESES[nombre] === numero);
+}
+
+/** Fecha de mañana en el formato escrito de la transferencia enviada. */
+function mananaEscrita() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return `${d.getDate()} de ${nombreDelMes(d)} de ${d.getFullYear()}`;
 }
 
 function conSaldo(monto = 1000000) {
@@ -65,6 +83,22 @@ test('una compra con débito descuenta de la cuenta', () => {
   e.apretar('Sí, guardar así');
 
   assert.equal(e.contexto.calcularSaldo().actual, 987500);
+});
+
+// La primera versión de calcularSaldo solo restaba el débito, y una
+// transferencia enviada de verdad no se contaba: /saldo daba un número
+// mayor al real hasta que se corregía a mano. Sale de la cuenta al instante,
+// igual que el débito.
+test('una transferencia enviada descuenta de la cuenta, igual que el débito', () => {
+  const e = conSaldo(1000000);
+  e.contexto.procesarMensaje({
+    getId: () => 'x1', getSubject: () => 'Transferencia a Terceros',
+    getPlainBody: () => 'Monto $40.000 Fecha y Hora: ' + mananaEscrita() + ' 13:20',
+  });
+  e.apretar('🏠 Hogar');
+  e.apretar('Guardar sin subcategoría');
+
+  assert.equal(e.contexto.calcularSaldo().actual, 960000);
 });
 
 // Contar la compra Y el pago de la tarjeta restaría dos veces la misma plata.

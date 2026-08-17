@@ -60,6 +60,14 @@ function procesarMensaje(mensaje) {
   if (correoYaRegistrado(correoId)) return;
 
   var asunto = mensaje.getSubject();
+
+  // Estos correos no son un movimiento y nunca lo van a ser: son avisos de
+  // seguridad del banco, como cuando se agrega un destinatario nuevo. No caen
+  // en no_entendidos porque no es un formato que falte agregar, y llenar esa
+  // bandeja con avisos que nunca se van a poder "arreglar" le resta valor al
+  // aviso real cuando aparezca un formato que si falta.
+  if (esCorreoIgnorado(asunto)) return;
+
   var cuerpo = mensaje.getPlainBody();
 
   var pago = leerPagoTarjeta(asunto, cuerpo);

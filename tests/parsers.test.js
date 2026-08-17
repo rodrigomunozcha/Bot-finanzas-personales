@@ -251,3 +251,63 @@ test('no se confunde una transferencia enviada con una recibida', () => {
     null
   );
 });
+
+// --- Bug real: el asunto no era el que se asumió -----------------------
+//
+// El primer correo de ejemplo que se usó para escribir este lector traía como
+// primera línea "Comprobante de Transferencia a terceros", y se asumió que
+// esa era la línea de asunto de Gmail. Era el encabezado de ADENTRO del
+// cuerpo. El asunto real, confirmado contra la hoja de no entendidos donde
+// las transferencias reales quedaron sin reconocer, es "Transferencia a
+// Terceros", sin "Comprobante de". Con el asunto viejo, ninguna transferencia
+// enviada se reconocía nunca.
+test('el asunto real de Gmail es "Transferencia a Terceros", sin "Comprobante de"', () => {
+  const cuerpo = `Comprobante de Transferencia a terceros
+Estimado(a): Nombre Inventado
+Monto 	$8.950
+Mensaje 	Algo
+
+Fecha y Hora:
+
+martes 11 de agosto de 2026 17:08`;
+
+  const r = p.leerCorreo('Transferencia a Terceros', cuerpo);
+  assert.ok(r, 'con el asunto real, el correo tiene que reconocerse');
+  assert.equal(r.monto, 8950);
+});
+
+// --- Bug real: dos formatos de fecha, no uno --------------------------
+//
+// El banco manda la fecha de dos formas y las dos son reales: se vieron el
+// mismo mes en transferencias distintas del usuario.
+test('fecha sin coma y en 24 horas', () => {
+  const cuerpo = 'Monto $8.950 Fecha y Hora: martes 11 de agosto de 2026 17:08';
+  const r = p.leerCorreo('Transferencia a Terceros', cuerpo);
+  assert.equal(r.fechaHora, '2026-08-11T17:08');
+});
+
+test('fecha con comas y en 12 horas con a. m. / p. m.', () => {
+  const manana = 'Monto $8.950 Fecha y Hora: Sábado, 15 de agosto de 2026, 9:33 a. m.';
+  assert.equal(
+    p.leerCorreo('Transferencia a Terceros', manana).fechaHora,
+    '2026-08-15T09:33'
+  );
+
+  const tarde = 'Monto $8.950 Fecha y Hora: Sábado, 15 de agosto de 2026, 9:33 p. m.';
+  assert.equal(
+    p.leerCorreo('Transferencia a Terceros', tarde).fechaHora,
+    '2026-08-15T21:33'
+  );
+});
+
+test('el mediodía y la medianoche en 12 horas se convierten bien', () => {
+  assert.equal(p.normalizarFechaLarga('1', 'enero', '2026', '12:00', 'p. m.'),
+    '2026-01-01T12:00', 'las 12 p.m. son mediodía, no 24:00');
+  assert.equal(p.normalizarFechaLarga('1', 'enero', '2026', '12:00', 'a. m.'),
+    '2026-01-01T00:00', 'las 12 a.m. son medianoche, no 12:00');
+});
+
+test('sin a. m. / p. m. la hora se toma tal cual, como 24 horas', () => {
+  assert.equal(p.normalizarFechaLarga('1', 'enero', '2026', '17:08', undefined),
+    '2026-01-01T17:08');
+});
