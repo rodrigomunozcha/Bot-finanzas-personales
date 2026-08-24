@@ -50,14 +50,40 @@ test('ningun callback_data supera los 64 bytes', () => {
 test('el teclado de subcategorias siempre deja salir sin elegir una', () => {
   arbol.forEach((categoria, i) => {
     const teclado = tg.tecladoSubcategorias('abc123', arbol, i);
-    const ultima = teclado[teclado.length - 1];
-    assert.equal(ultima.length, 1);
-    assert.ok(ultima[0].callback_data.startsWith('solo:'), categoria.nombre);
+    // Las dos ultimas filas son fijas: primero salir sin elegir, despues
+    // agregar una subcategoria. En ese orden, para que "Guardar sin
+    // subcategoria" siga siendo el primer botón después de la lista, como ya
+    // era antes de que existiera "Añadir subcategoría".
+    const [salir, agregar] = teclado.slice(-2);
+    assert.equal(salir.length, 1);
+    assert.ok(salir[0].callback_data.startsWith('solo:'), categoria.nombre);
+    assert.equal(agregar.length, 1);
+    assert.equal(agregar[0].callback_data, 'nuevasub:abc123', categoria.nombre);
   });
 });
 
-test('las categorias se reparten en dos columnas', () => {
+test('las categorias se reparten en dos columnas, y "Añadir categoría" va aparte', () => {
   const teclado = tg.tecladoCategorias('abc123', arbol);
-  assert.equal(teclado.length, 6, '12 categorias en 6 filas');
-  teclado.forEach((fila) => assert.ok(fila.length <= 2));
+  assert.equal(teclado.length, 7, '12 categorias en 6 filas de a dos, más la de agregar');
+  teclado.slice(0, -1).forEach((fila) => assert.ok(fila.length <= 2));
+
+  const ultima = teclado[teclado.length - 1];
+  assert.equal(ultima.length, 1);
+  assert.equal(ultima[0].callback_data, 'nuevacat:abc123');
+});
+
+// El indice de una categoria agregada despues no puede correr los indices de
+// las que ya estaban: esos numeros ya estan escritos en botones viejos.
+test('"Añadir categoría" y "Añadir subcategoría" no corren los índices existentes', () => {
+  const categorias = tg.tecladoCategorias('abc123', arbol)
+    .flat().filter((b) => b.callback_data.startsWith('cat:'));
+  categorias.forEach((boton, i) => {
+    assert.equal(boton.callback_data, 'cat:abc123:' + i);
+  });
+
+  const subcategorias = tg.tecladoSubcategorias('abc123', arbol, 0)
+    .flat().filter((b) => b.callback_data.startsWith('sub:'));
+  subcategorias.forEach((boton, j) => {
+    assert.equal(boton.callback_data, 'sub:abc123:0:' + j);
+  });
 });

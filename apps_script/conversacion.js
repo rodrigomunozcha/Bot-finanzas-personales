@@ -12,8 +12,17 @@
  *   3 confirmado -> no pregunta nada, solo avisa
  */
 
+/**
+ * El arbol de categorias que trae el codigo, mas las que el usuario agrego
+ * desde el bot para ese mismo tipo. Las agregadas quedan al final: ver el
+ * porque en arbolConPersonalizadas, en clasificador.js.
+ */
 function arbolDe(tipo) {
-  return tipo === 'ingreso' ? CATEGORIAS_INGRESO : CATEGORIAS_GASTO;
+  var base = tipo === 'ingreso' ? CATEGORIAS_INGRESO : CATEGORIAS_GASTO;
+  var personalizadas = cargarCategoriasPersonalizadas().filter(function (f) {
+    return f.tipo === tipo;
+  });
+  return arbolConPersonalizadas(base, personalizadas);
 }
 
 /**
@@ -50,7 +59,7 @@ function abrirGasto(mov) {
   } else {
     mov.estado = ESTADOS.ESPERANDO_CATEGORIA;
     texto = encabezado(mov) + '\n\n¿Qué categoría?';
-    teclado = tecladoCategorias(mov.id, CATEGORIAS_GASTO);
+    teclado = tecladoCategorias(mov.id, arbolDe(mov.tipo));
   }
 
   mov.mensajeId = tgEnviar(texto, teclado);
@@ -153,7 +162,13 @@ function manejarBoton(callback) {
     tgEnviar('No encuentro ese gasto en la hoja. Puede que lo hayas borrado a mano.');
     return;
   }
-  var arbol = arbolDe(mov.tipo);
+
+  // El arbol se arma solo en las tres acciones que lo usan, no arriba para
+  // todas. Armarlo cuesta leer la hoja de categorias personalizadas cuando la
+  // cache esta fria, y el boton mas apretado de todos ("Sí, guardar así") no
+  // necesita el arbol para nada: pagaba esa lectura, cerca de un segundo de
+  // espera en el telefono, sin usarla.
+  var arbol;
 
   if (accion === 'fin') {
     tgEditar(mov.mensajeId,
@@ -172,12 +187,14 @@ function manejarBoton(callback) {
   }
 
   if (accion === 'edit') {
+    arbol = arbolDe(mov.tipo);
     tgEditar(mov.mensajeId, encabezado(mov) + '\n\n¿Qué categoría?',
       tecladoCategorias(id, arbol));
     return;
   }
 
   if (accion === 'cat') {
+    arbol = arbolDe(mov.tipo);
     var i = Number(partes[2]);
     var categoria = arbol[i];
     // Sin subcategorias no hay nada que preguntar: se cierra de una.
@@ -192,12 +209,13 @@ function manejarBoton(callback) {
     mov.estado = ESTADOS.ESPERANDO_SUBCATEGORIA;
     guardarMovimiento(mov);
     tgEditar(mov.mensajeId,
-      encabezado(mov) + '\n\n' + categoria.nombre + '\n¿Cuál?',
+      encabezado(mov) + '\n\n' + tgEscapar(categoria.nombre) + '\n¿Cuál?',
       tecladoSubcategorias(id, arbol, i));
     return;
   }
 
   if (accion === 'sub' || accion === 'solo') {
+    arbol = arbolDe(mov.tipo);
     var iCat = Number(partes[2]);
     var nombreCat = arbol[iCat].nombre;
     var nombreSub = accion === 'sub' ? arbol[iCat].subcategorias[Number(partes[3])] : null;
@@ -216,8 +234,28 @@ function manejarBoton(callback) {
       .setProperty('NOTA_PARA', id + '|' + Date.now());
     tgEnviar('📝 Escribe ahora la nota para <b>' + tgEscapar(mov.comercio) + '</b>.\n'
       + 'Tu próximo mensaje se guarda como nota de ese gasto. '
-      + 'Si no escribes nada en ' + Math.round(VENTANA_NOTA_MS / 60000)
+      + 'Si no escribes nada en ' + Math.round(VENTANA_RESPUESTA_MS / 60000)
       + ' minutos, se cancela sola y vuelvo a entender comandos normales.');
+    return;
+  }
+
+  if (accion === 'nuevacat') {
+    PropertiesService.getScriptProperties()
+      .setProperty('CATEGORIA_NUEVA_PARA', id + '|' + Date.now());
+    tgEnviar('🏷️ Escribe el nombre de la categoría nueva.\n'
+      + 'Si quieres, ponle tú mismo un emoji delante, como las demás.\n'
+      + 'Tu próximo mensaje se guarda como el nombre. Si no escribes nada en '
+      + Math.round(VENTANA_CATEGORIA_MS / 60000) + ' minutos, se cancela sola.');
+    return;
+  }
+
+  if (accion === 'nuevasub') {
+    PropertiesService.getScriptProperties()
+      .setProperty('SUBCATEGORIA_NUEVA_PARA', id + '|' + Date.now());
+    tgEnviar('🏷️ Escribe el nombre de la subcategoría nueva para <b>'
+      + tgEscapar(mov.categoria) + '</b>.\n'
+      + 'Tu próximo mensaje se guarda como el nombre. Si no escribes nada en '
+      + Math.round(VENTANA_CATEGORIA_MS / 60000) + ' minutos, se cancela sola.');
     return;
   }
 
@@ -226,7 +264,7 @@ function manejarBoton(callback) {
     mov.estado = ESTADOS.ESPERANDO_CATEGORIA;
     guardarMovimiento(mov);
     tgEditar(mov.mensajeId, encabezado(mov) + '\n\n¿Qué tipo de ingreso?',
-      tecladoCategorias(id, CATEGORIAS_INGRESO));
+      tecladoCategorias(id, arbolDe('ingreso')));
     return;
   }
 
@@ -267,28 +305,150 @@ function comando(texto) {
   return { nombre: m[1].toLowerCase(), resto: m[2].trim() };
 }
 
-/** Cuanto tiempo se espera la nota antes de cancelarla sola. */
-var VENTANA_NOTA_MS = 600000;   // 10 minutos
+/**
+ * Cuanto tiempo se espera el proximo mensaje de texto antes de cancelar solo.
+ *
+ * La nota es una reaccion inmediata a un gasto que se esta mirando en ese
+ * momento, y 10 minutos alcanza de sobra. Pensar el nombre de una categoria
+ * nueva es otra cosa: es plausible que el usuario quiera pensarlo, revisar que
+ * no tenga ya algo parecido, o simplemente lo interrumpan. Un caso real de
+ * este proyecto: se probo "Añadir categoria" y no funciono porque el nombre se
+ * escribio pasados los 10 minutos, y para entonces la espera ya habia caducado
+ * en silencio. Por eso categoria y subcategoria tienen su propia ventana, mas
+ * larga.
+ */
+var VENTANA_RESPUESTA_MS = 600000;    // 10 minutos: nota
+var VENTANA_CATEGORIA_MS = 1800000;   // 30 minutos: categoria y subcategoria nuevas
 
 /**
- * Devuelve el id del gasto que espera nota, o null si no hay o ya caduco.
+ * Devuelve el id guardado bajo "clave", o null si no hay nada o ya caduco.
  *
- * La caducidad no es un detalle: sin ella, apretar "Agregar nota" y no escribir
- * dejaba al bot esperando indefinidamente, y el siguiente texto que se le
- * mandara, aunque fuera al dia siguiente, terminaba guardado como nota.
+ * La comparten tres esperas: la nota, la categoria nueva y la subcategoria
+ * nueva. Las tres guardan lo mismo (un id y el momento) bajo una propiedad
+ * distinta, y cada una espera lo suyo: "ventanaMs" es cuanto le corresponde a
+ * esta espera en particular, no un valor fijo para las tres.
+ *
+ * La caducidad no es un detalle: sin ella, apretar un boton y no escribir
+ * nada dejaba al bot esperando indefinidamente, y el siguiente texto que se
+ * le mandara, aunque fuera al dia siguiente, se comia como si fuera la
+ * respuesta a ese boton.
  */
-function notaPendiente(propiedades) {
-  var guardado = propiedades.getProperty('NOTA_PARA');
+function _pendiente(propiedades, clave, ventanaMs) {
+  var guardado = propiedades.getProperty(clave);
   if (!guardado) return null;
 
   var partes = String(guardado).split('|');
   var cuando = Number(partes[1] || 0);
 
-  if (!cuando || Date.now() - cuando > VENTANA_NOTA_MS) {
-    propiedades.deleteProperty('NOTA_PARA');
+  if (!cuando || Date.now() - cuando > ventanaMs) {
+    propiedades.deleteProperty(clave);
     return null;
   }
   return partes[0];
+}
+
+function notaPendiente(propiedades) {
+  return _pendiente(propiedades, 'NOTA_PARA', VENTANA_RESPUESTA_MS);
+}
+
+function categoriaNuevaPendiente(propiedades) {
+  return _pendiente(propiedades, 'CATEGORIA_NUEVA_PARA', VENTANA_CATEGORIA_MS);
+}
+
+function subcategoriaNuevaPendiente(propiedades) {
+  return _pendiente(propiedades, 'SUBCATEGORIA_NUEVA_PARA', VENTANA_CATEGORIA_MS);
+}
+
+/**
+ * El usuario acaba de escribir el nombre de una categoria nueva.
+ *
+ * Se guarda en su planilla (no en el codigo) y se deja como categoria del
+ * gasto. Se le ofrece de una vez la chance de agregarle tambien una
+ * subcategoria, en vez de cerrar el gasto de inmediato: una categoria recien
+ * creada siempre tiene cero subcategorias, y cerrarla solo porque tiene cero
+ * (la regla que usan las categorias del codigo que son asi a proposito, como
+ * "Regalos") le habria quitado a este el unico momento facil para agregar la
+ * primera subcategoria.
+ */
+function resolverCategoriaNueva(propiedades, movId, texto) {
+  propiedades.deleteProperty('CATEGORIA_NUEVA_PARA');
+
+  var mov = obtenerMovimiento(movId);
+  if (!mov) {
+    tgEnviar('No encuentro ese gasto en la hoja. Puede que lo hayas borrado a mano.');
+    return;
+  }
+
+  var limpio = nombreDeCategoriaValido(texto);
+  if (!limpio) {
+    // Se vuelve a marcar la espera: el usuario sigue en medio de escribir un
+    // nombre, perder la conversacion aca por un nombre invalido seria mas
+    // molesto que pedirlo de nuevo.
+    propiedades.setProperty('CATEGORIA_NUEVA_PARA', movId + '|' + Date.now());
+    tgEnviar('Ese nombre no sirve. Escribe uno de 1 a ' + MAX_LARGO_CATEGORIA +
+      ' caracteres.');
+    return;
+  }
+
+  // Se mira si ya existia ANTES de guardar. Escribir el nombre de una que ya
+  // esta es facil (uno no se acuerda de memoria de las doce), y antes eso
+  // guardaba una fila repetida y encima respondia "(categoría nueva)", que era
+  // falso. Ahora no se guarda nada y se dice lo que de verdad paso: la
+  // categoria se usa igual, que es lo que el usuario queria.
+  var arbol = arbolDe(mov.tipo);
+  var yaExistia = indiceDeCategoria(arbol, limpio) >= 0;
+
+  if (!yaExistia) {
+    guardarCategoriaPersonalizada(mov.tipo, limpio, '');
+    arbol = arbolDe(mov.tipo);
+  }
+
+  var indice = indiceDeCategoria(arbol, limpio);
+  if (indice < 0) {
+    // No deberia pasar: se acaba de guardar y de releer. Si pasa, es que la
+    // cache quedo pegada. Se avisa en vez de reventar con "arbol[-1] no tiene
+    // subcategorias", que no le diria nada a nadie.
+    tgEnviar('Guardé <b>' + tgEscapar(limpio) + '</b>, pero no la encuentro para '
+      + 'seguir. Vuelve a apretar "Cambiar categoría" en el gasto y ahí debería '
+      + 'aparecer en la lista.');
+    return;
+  }
+
+  mov.categoria = limpio;
+  mov.estado = ESTADOS.ESPERANDO_SUBCATEGORIA;
+  guardarMovimiento(mov);
+
+  tgEditar(mov.mensajeId,
+    encabezado(mov) + '\n\n🏷️ <b>' + tgEscapar(limpio) + '</b> ' +
+    (yaExistia ? '(esa ya la tenías, la uso igual)' : '(categoría nueva)') +
+    '\n¿Le agregas una subcategoría, o la guardo así?',
+    tecladoSubcategorias(movId, arbol, indice));
+}
+
+/** El usuario acaba de escribir el nombre de una subcategoria nueva. */
+function resolverSubcategoriaNueva(propiedades, movId, texto) {
+  propiedades.deleteProperty('SUBCATEGORIA_NUEVA_PARA');
+
+  var mov = obtenerMovimiento(movId);
+  if (!mov) {
+    tgEnviar('No encuentro ese gasto en la hoja. Puede que lo hayas borrado a mano.');
+    return;
+  }
+
+  var limpio = nombreDeCategoriaValido(texto);
+  if (!limpio) {
+    propiedades.setProperty('SUBCATEGORIA_NUEVA_PARA', movId + '|' + Date.now());
+    tgEnviar('Ese nombre no sirve. Escribe uno de 1 a ' + MAX_LARGO_CATEGORIA +
+      ' caracteres.');
+    return;
+  }
+
+  guardarCategoriaPersonalizada(mov.tipo, mov.categoria, limpio);
+
+  var registro = calcularCierre(mov, mov.categoria, limpio);
+  tgEditar(mov.mensajeId, textoCerrado(mov, mov.categoria, limpio, registro),
+    tecladoCerrado(movId));
+  persistirCierre(mov, mov.categoria, limpio, registro);
 }
 
 /** Procesa un mensaje de texto: notas, comandos y ayuda. */
@@ -320,6 +480,29 @@ function manejarTexto(texto) {
       ? '📝 Nota guardada en <b>' + tgEscapar(mov.comercio) + '</b>:\n' + tgEscapar(texto)
       : '📝 Nota guardada, pero no encontré el gasto para mostrarla.');
     return;
+  }
+
+  // Si lo que llega parece un comando ("/saldo", "/pendientes"), no se toma
+  // como el nombre de la categoria: eso habria creado una categoria literal
+  // llamada "/saldo". Se cancela la espera y el comando sigue su camino normal
+  // mas abajo. La nota no necesita este resguardo porque cualquier texto,
+  // incluido uno que empiece con "/", es una nota valida.
+  var esperandoCategoriaNueva = categoriaNuevaPendiente(propiedades);
+  if (esperandoCategoriaNueva && comando(texto)) {
+    propiedades.deleteProperty('CATEGORIA_NUEVA_PARA');
+    esperandoCategoriaNueva = null;
+  }
+  if (esperandoCategoriaNueva) {
+    return resolverCategoriaNueva(propiedades, esperandoCategoriaNueva, texto);
+  }
+
+  var esperandoSubcategoriaNueva = subcategoriaNuevaPendiente(propiedades);
+  if (esperandoSubcategoriaNueva && comando(texto)) {
+    propiedades.deleteProperty('SUBCATEGORIA_NUEVA_PARA');
+    esperandoSubcategoriaNueva = null;
+  }
+  if (esperandoSubcategoriaNueva) {
+    return resolverSubcategoriaNueva(propiedades, esperandoSubcategoriaNueva, texto);
   }
 
   var cmd = comando(texto);

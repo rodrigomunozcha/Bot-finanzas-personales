@@ -19,9 +19,20 @@ function entra(e, comercio, id) {
  * Script, y es casi toda la demora que se siente en el telefono. Estos topes
  * estan para que una mejora futura no meta de vuelta una lectura extra sin que
  * nadie se de cuenta.
+ *
+ * Las hojas se llenan A PROPOSITO, y no es un detalle del montaje: una hoja
+ * vacia no se lee. cargarCategoriasPersonalizadas pregunta getLastRow() antes
+ * de pedir valores, asi que con la hoja vacia nunca llama a getValues() y no
+ * cuenta ninguna lectura. Durante un tiempo esta prueba dejo pasar una lectura
+ * extra por cada boton justamente por eso: medía un caso que en la vida real
+ * deja de existir apenas el usuario crea su primera categoria.
  */
 function entornoConDatos() {
   const e = crearEntorno();
+  e.hojas.categorias_personalizadas._filas.push(
+    ['gasto', '💸 Carrete', '', new Date()],
+    ['gasto', '🐾 Mascotas', 'Veterinario', new Date()]
+  );
   for (let i = 0; i < 5; i++) {
     entra(e, 'COMERCIO ' + i, 'previo' + i);
     e.apretar('🍴 Alimentación');

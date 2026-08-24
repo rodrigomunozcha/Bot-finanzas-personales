@@ -475,8 +475,22 @@ function instalar() {
       ['comercio', 'categoria', 'subcategoria', 'confirmaciones', 'actualizado']);
     // La cuarta columna guarda un enlace al correo, nunca su contenido.
     crearHoja(libro, HOJA_NO_ENTENDIDOS, ['fecha', 'asunto', 'correoId', 'enlace']);
+    crearHoja(libro, HOJA_CATEGORIAS_PERSONALIZADAS,
+      ['tipo', 'categoria', 'subcategoria', 'creado']);
     libro.deleteSheet(libro.getSheetByName('Hoja 1') || libro.getSheets()[0]);
     propiedades.setProperty('HOJA_ID', libro.getId());
+  } else {
+    // Instalaciones de antes de que esto existiera no tienen esta hoja. Se
+    // abre el libro que ya existe y se suma solo lo que falta: repetir la
+    // logica de arriba aca habria repetido tambien el borrado de "Hoja 1" o
+    // "la primera hoja del libro", y en un libro que ya tiene datos de verdad
+    // esa segunda frase apunta a "movimientos". Un libro sin Hoja 1 habria
+    // borrado el historial del usuario.
+    var libroExistente = SpreadsheetApp.openById(propiedades.getProperty('HOJA_ID'));
+    if (!libroExistente.getSheetByName(HOJA_CATEGORIAS_PERSONALIZADAS)) {
+      crearHoja(libroExistente, HOJA_CATEGORIAS_PERSONALIZADAS,
+        ['tipo', 'categoria', 'subcategoria', 'creado']);
+    }
   }
 
   [ETIQUETA_PENDIENTE, ETIQUETA_PROCESADO].forEach(function (nombre) {

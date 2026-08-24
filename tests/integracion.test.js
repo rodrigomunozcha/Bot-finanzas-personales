@@ -312,3 +312,343 @@ test('un aviso de seguridad del banco se ignora, no cae en no entendidos', () =>
   const [, ...noEntendidos] = e.hojas.no_entendidos._filas;
   assert.equal(noEntendidos.length, 0, 'tampoco debe quedar como no entendido');
 });
+
+// --- Añadir categoría y subcategoría desde el bot ---------------------------
+
+test('el teclado de categorías trae el botón para añadir una nueva', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  const botones = (e.ultimoTeclado() || []).flat().map((b) => b.text);
+  assert.ok(botones.includes('➕ Añadir categoría'));
+});
+
+test('añadir una categoría nueva: se pregunta, se guarda y ofrece subcategoría', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  assert.match(e.ultimoTexto(), /Escribe el nombre de la categoría nueva/);
+
+  e.contexto.manejarTexto('🐾 Mascotas');
+  assert.match(e.ultimoTexto(), /🐾 Mascotas/);
+  assert.match(e.ultimoTexto(), /categoría nueva/);
+
+  const botones = (e.ultimoTeclado() || []).flat().map((b) => b.text);
+  assert.ok(botones.includes('➕ Añadir subcategoría'));
+  assert.ok(botones.includes('✓ Guardar sin subcategoría'));
+
+  e.apretar('Guardar sin subcategoría');
+
+  const mov = e.movimiento();
+  assert.equal(mov.categoria, '🐾 Mascotas');
+  assert.equal(mov.subcategoria, '');
+  assert.equal(mov.estado, 'cerrado');
+
+  const guardadas = e.categoriasPersonalizadas();
+  assert.equal(guardadas.length, 1);
+  assert.equal(guardadas[0].tipo, 'gasto');
+  assert.equal(guardadas[0].categoria, '🐾 Mascotas');
+  assert.equal(guardadas[0].subcategoria, '');
+});
+
+test('a esa categoría nueva se le puede agregar de una vez su primera subcategoría', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('🐾 Mascotas');
+  e.apretar('➕ Añadir subcategoría');
+  assert.match(e.ultimoTexto(), /subcategoría nueva para <b>🐾 Mascotas<\/b>/);
+
+  e.contexto.manejarTexto('Veterinario');
+
+  const mov = e.movimiento();
+  assert.equal(mov.categoria, '🐾 Mascotas');
+  assert.equal(mov.subcategoria, 'Veterinario');
+  assert.equal(mov.estado, 'cerrado');
+
+  // Quedan dos filas: la categoría se guardó al crearla (sin subcategoría), y
+  // la subcategoría se guardó aparte al agregarla. arbolConPersonalizadas las
+  // junta en una sola categoría igual, así que dos filas no es un problema.
+  const guardadas = e.categoriasPersonalizadas();
+  assert.equal(guardadas.length, 2);
+  assert.ok(guardadas.some((g) => g.categoria === '🐾 Mascotas' && g.subcategoria === ''));
+  assert.ok(guardadas.some((g) => g.categoria === '🐾 Mascotas' && g.subcategoria === 'Veterinario'));
+});
+
+test('una categoría agregada aparece en la lista del siguiente gasto', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('🐾 Mascotas');
+  e.apretar('Guardar sin subcategoría');
+
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $9.000 con cargo a ' +
+    'Cuenta ****1234 en OTRO COMERCIO el 02/08/2026 10:00.', 'otro-comercio');
+
+  const botones = (e.ultimoTeclado() || []).flat().map((b) => b.text);
+  assert.ok(botones.includes('🐾 Mascotas'), 'la categoría agregada ya aparece en la lista');
+});
+
+// A una categoría que YA trae el código, con subcategorías propias, también se
+// le puede sumar una subcategoría nueva sin perder las que ya tenía.
+test('se puede añadir una subcategoría a una categoría que ya existía', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('🍴 Alimentación');
+  const botonesSub = (e.ultimoTeclado() || []).flat().map((b) => b.text);
+  assert.ok(botonesSub.includes('🛒 Supermercado'), 'las subcategorías de siempre siguen ahí');
+  assert.ok(botonesSub.includes('➕ Añadir subcategoría'));
+
+  e.apretar('➕ Añadir subcategoría');
+  e.contexto.manejarTexto('Vinos y licores');
+
+  assert.equal(e.movimiento().subcategoria, 'Vinos y licores');
+
+  const guardadas = e.categoriasPersonalizadas();
+  assert.equal(guardadas.length, 1);
+  assert.equal(guardadas[0].categoria, '🍴 Alimentación');
+  assert.equal(guardadas[0].subcategoria, 'Vinos y licores');
+});
+
+test('un nombre vacío no se acepta, y se sigue esperando el nombre', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('   ');
+  assert.match(e.ultimoTexto(), /Ese nombre no sirve/);
+
+  // El intento invalido no toco el gasto: sigue esperando categoria, sin una
+  // asignada todavia.
+  assert.equal(e.movimiento().estado, 'esperando_categoria');
+  assert.equal(e.movimiento().categoria, '');
+
+  e.contexto.manejarTexto('🐾 Mascotas');
+  e.apretar('Guardar sin subcategoría');
+  assert.equal(e.movimiento().categoria, '🐾 Mascotas',
+    'el segundo intento, ya válido, sí se tomó');
+  assert.equal(e.movimiento().estado, 'cerrado');
+});
+
+test('un nombre demasiado largo tampoco se acepta', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('a'.repeat(50));
+  assert.match(e.ultimoTexto(), /Ese nombre no sirve/);
+});
+
+// Caso real de este proyecto: se probó "Añadir categoría" y no funcionó,
+// porque el nombre se escribió después de la ventana de espera (10 minutos,
+// la misma que la nota), que ya había caducado en silencio.
+test('la espera de categoría nueva dura más que la de la nota', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  // Más de los 10 minutos de la nota, pero dentro de la ventana de categoría.
+  e.adelantarReloj(20 * 60 * 1000);
+  e.contexto.manejarTexto('💸 Carrete');
+
+  assert.equal(e.movimiento().categoria, '💸 Carrete',
+    'a los 20 minutos la nota ya habría caducado, pero la categoría no');
+});
+
+test('pasada su propia ventana, la espera de categoría también caduca', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  e.adelantarReloj(31 * 60 * 1000);
+  e.contexto.manejarTexto('💸 Carrete');
+
+  assert.match(e.ultimoTexto(), /No entendí/, 'ya caducada, se trata como texto normal');
+  assert.equal(e.movimiento().categoria, '', 'no quedó ninguna categoría puesta');
+});
+
+// El otro problema real: si en medio de la espera el usuario escribe un
+// comando (por ejemplo para consultar el saldo mientras piensa el nombre),
+// ese comando no se puede convertir en el nombre de la categoría.
+test('un comando escrito durante la espera no se toma como nombre de categoría', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('/saldo');
+
+  assert.notEqual(e.movimiento().categoria, '/saldo');
+  assert.equal(e.categoriasPersonalizadas().length, 0,
+    'no debe haber quedado guardada una categoría llamada "/saldo"');
+
+  // La espera se cancela, no queda colgada esperando un nombre para siempre.
+  e.contexto.manejarTexto('💸 Carrete');
+  assert.match(e.ultimoTexto(), /No entendí/,
+    'sin el botón de nuevo, el segundo texto ya no se toma como nombre');
+});
+
+test('lo mismo aplica a la espera de subcategoría nueva', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('💸 Carrete');
+  e.apretar('➕ Añadir subcategoría');
+
+  e.adelantarReloj(20 * 60 * 1000);
+  e.contexto.manejarTexto('Asado');
+
+  assert.equal(e.movimiento().subcategoria, 'Asado');
+});
+
+// Telegram manda los mensajes con parse_mode HTML, así que un "&", "<" o ">"
+// suelto hace que rechace el mensaje ENTERO con "can't parse entities". El
+// síntoma no se parece a la causa: el gasto se queda sin respuesta y no hay
+// nada escrito que apunte al nombre de la categoría.
+//
+// Antes esto no podía pasar, porque las categorías venían de un archivo
+// nuestro. Desde que el usuario las escribe desde el bot, sí.
+test('una categoría con & no rompe el mensaje que la muestra', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('Café & Bar');
+  e.apretar('Guardar sin subcategoría');
+
+  const texto = e.ultimoTexto();
+  assert.match(texto, /Café &amp; Bar/, 'el & tiene que ir escapado');
+  assert.equal(/&(?!amp;|lt;|gt;)/.test(texto), false,
+    'no puede quedar ningún & suelto en el mensaje');
+
+  // Y en la hoja se guarda el nombre de verdad, sin escapar: el escapado es
+  // solo para mostrarlo, no parte del dato.
+  assert.equal(e.movimiento().categoria, 'Café & Bar');
+});
+
+test('una subcategoría con < o > tampoco rompe el mensaje', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('🍴 Alimentación');
+  e.apretar('➕ Añadir subcategoría');
+  e.contexto.manejarTexto('Menú <10.000>');
+
+  const texto = e.ultimoTexto();
+  assert.equal(/<(?!\/?(b|i|code|u|s|a|pre)[ >])/.test(texto), false,
+    'no puede quedar un < suelto que Telegram lea como etiqueta');
+  assert.equal(e.movimiento().subcategoria, 'Menú <10.000>');
+});
+
+// El informe recorre otro camino distinto al del gasto, y también muestra
+// nombres de categoría.
+test('los informes tampoco rompen con una categoría con &', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el ' + hoyComoDdMmAaaa() + ' 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('Café & Bar');
+  e.apretar('Guardar sin subcategoría');
+
+  e.contexto.manejarTexto('/semana');
+
+  const informes = e.enviados
+    .filter((x) => x.cuerpo && x.cuerpo.text)
+    .map((x) => x.cuerpo.text)
+    .filter((t) => t.includes('Café'));
+
+  assert.ok(informes.length, 'el informe tiene que mencionar la categoría');
+  for (const texto of informes) {
+    assert.equal(/&(?!amp;|lt;|gt;)/.test(texto), false,
+      'el informe dejó un & suelto');
+  }
+});
+
+/**
+ * Hoy en el formato del banco. El informe de la semana solo mira los últimos
+ * 7 días, así que una fecha fija de agosto de 2026 quedaría fuera y el informe
+ * saldría vacío sin que la prueba lo note.
+ */
+function hoyComoDdMmAaaa() {
+  const d = new Date();
+  const dd = (n) => String(n).padStart(2, '0');
+  return `${dd(d.getDate())}/${dd(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+// Escribir el nombre de una categoría que ya existe es fácil: nadie se acuerda
+// de memoria de las doce que trae el sistema. Antes eso guardaba una fila
+// repetida y respondía "(categoría nueva)", que era falso.
+test('escribir el nombre de una categoría que ya existe no la duplica', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('🍴 Alimentación');
+
+  assert.match(e.ultimoTexto(), /ya la tenías/, 'no puede decir que es nueva');
+  assert.equal(e.categoriasPersonalizadas().length, 0,
+    'no debe guardar una fila para algo que ya estaba');
+
+  // Y se usa igual, que es lo que el usuario quería.
+  const botones = (e.ultimoTeclado() || []).flat().map((b) => b.text);
+  assert.ok(botones.includes('🛒 Supermercado'),
+    'muestra las subcategorías que esa categoría ya tenía');
+
+  e.apretar('🛒 Supermercado');
+  assert.equal(e.movimiento().categoria, '🍴 Alimentación');
+  assert.equal(e.movimiento().subcategoria, '🛒 Supermercado');
+});
+
+test('la misma categoría creada dos veces solo se guarda una', () => {
+  const e = crearEntorno();
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $4.500 con cargo a ' +
+    'Cuenta ****1234 en ALMACEN DON JOSE el 01/08/2026 10:00.');
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('💸 Carrete');
+  e.apretar('Guardar sin subcategoría');
+
+  entra(e, 'Cargo en cuenta',
+    'Te informamos que se ha realizado una compra por $9.000 con cargo a ' +
+    'Cuenta ****1234 en OTRO LUGAR el 02/08/2026 10:00.', 'otro');
+  e.apretar('➕ Añadir categoría');
+  e.contexto.manejarTexto('💸 Carrete');
+
+  assert.equal(e.categoriasPersonalizadas().length, 1,
+    'la segunda vez no agrega una fila nueva');
+  assert.match(e.ultimoTexto(), /ya la tenías/);
+});

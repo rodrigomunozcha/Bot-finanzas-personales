@@ -285,9 +285,23 @@ function dos(n) {
   return (n < 10 ? '0' : '') + n;
 }
 
-/** "🍴 Alimentación" + "🛒 Supermercado" -> "🍴 Alimentación › 🛒 Supermercado" */
+/**
+ * "🍴 Alimentación" + "🛒 Supermercado" -> "🍴 Alimentación › 🛒 Supermercado"
+ *
+ * Escapa los dos nombres, porque el resultado va dentro de un mensaje con
+ * parse_mode HTML.
+ *
+ * Durante mucho tiempo no hizo falta y por eso no estaba: las categorias
+ * venian todas de datos/categorias_gasto.json, escrito por nosotros y sin
+ * caracteres que rompan HTML. Desde que el usuario puede crear categorias
+ * desde el bot, un nombre tan razonable como "Cafe & Bar" mete un & suelto, y
+ * Telegram rechaza el mensaje ENTERO con "can't parse entities". El sintoma no
+ * se parece a la causa: el gasto simplemente se queda sin respuesta, sin nada
+ * escrito en ninguna parte que apunte al nombre de la categoria.
+ */
 function rutaCategoria(categoria, subcategoria) {
-  return subcategoria ? categoria + ' › ' + subcategoria : categoria;
+  var cat = tgEscapar(categoria);
+  return subcategoria ? cat + ' › ' + tgEscapar(subcategoria) : cat;
 }
 
 // --- Teclados --------------------------------------------------------------
@@ -305,7 +319,11 @@ function tecladoCategorias(txId, arbol) {
   var botones = arbol.map(function (c, i) {
     return { text: c.nombre, callback_data: 'cat:' + txId + ':' + i };
   });
-  return enFilas(botones, 2);
+  var filas = enFilas(botones, 2);
+  // Siempre al final, para no correr los numeros de las categorias que ya
+  // estan mostradas en mensajes viejos de Telegram.
+  filas.push([{ text: '➕ Añadir categoría', callback_data: 'nuevacat:' + txId }]);
+  return filas;
 }
 
 function tecladoSubcategorias(txId, arbol, indiceCategoria) {
@@ -320,6 +338,10 @@ function tecladoSubcategorias(txId, arbol, indiceCategoria) {
     text: '✓ Guardar sin subcategoría',
     callback_data: 'solo:' + txId + ':' + indiceCategoria,
   }]);
+  // No lleva el indice de categoria: para cuando se resuelve el texto, el
+  // movimiento ya tiene guardada su categoria (se guardo antes de mostrar este
+  // teclado), asi que ahi se lee de vuelta sin tener que pasarla en el boton.
+  filas.push([{ text: '➕ Añadir subcategoría', callback_data: 'nuevasub:' + txId }]);
   return filas;
 }
 

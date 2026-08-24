@@ -1,12 +1,14 @@
 /**
  * Almacen en Google Sheets.
  *
- * Tres hojas:
- *   movimientos    un registro por gasto, ingreso o movimiento interno
- *   aprendizaje    que categoria corresponde a cada comercio, y cuantas veces
- *                  se ha confirmado
- *   no_entendidos  correos que ningun lector reconocio, para agregar su formato
- *                  despues sin haber perdido el dato
+ * Cuatro hojas:
+ *   movimientos              un registro por gasto, ingreso o movimiento interno
+ *   aprendizaje              que categoria corresponde a cada comercio, y
+ *                            cuantas veces se ha confirmado
+ *   no_entendidos            correos que ningun lector reconocio, para agregar
+ *                            su formato despues sin haber perdido el dato
+ *   categorias_personalizadas  categorias y subcategorias que el usuario agrego
+ *                            desde el bot, aparte de las que trae el codigo
  *
  * Esta es la copia viva. El archivo historico y los analisis viven en el Mac,
  * que baja esta hoja a SQLite cuando esta encendido.
@@ -21,6 +23,7 @@ var COLUMNAS = [
 var HOJA_MOVIMIENTOS = 'movimientos';
 var HOJA_APRENDIZAJE = 'aprendizaje';
 var HOJA_NO_ENTENDIDOS = 'no_entendidos';
+var HOJA_CATEGORIAS_PERSONALIZADAS = 'categorias_personalizadas';
 
 /**
  * Estados posibles de un movimiento. Los que empiezan con "esperando" son
@@ -367,6 +370,56 @@ function guardarAprendizaje(registro) {
     h.appendRow(valores);
     _olvidarIndice(h);
   }
+}
+
+/**
+ * Categorias y subcategorias que el usuario agrego con "Añadir categoria" o
+ * "Añadir subcategoria" desde el bot.
+ *
+ * Cada fila es {tipo, categoria, subcategoria}. Una fila con subcategoria
+ * vacia es una categoria nueva sin subcategorias todavia. arbolConPersonalizadas,
+ * en clasificador.js, es quien junta esto con el arbol que trae el codigo.
+ */
+function cargarCategoriasPersonalizadas() {
+  try {
+    var texto = CacheService.getScriptCache().get('categorias_personalizadas');
+    if (texto) return JSON.parse(texto);
+  } catch (error) {
+    console.error('Cache de categorias personalizadas ilegible: ' + error);
+  }
+
+  var h = hoja(HOJA_CATEGORIAS_PERSONALIZADAS);
+  var filas = [];
+  if (h.getLastRow() >= 2) {
+    h.getRange(2, 1, h.getLastRow() - 1, 3).getValues().forEach(function (f) {
+      if (!f[0] || !f[1]) return;
+      filas.push({ tipo: f[0], categoria: f[1], subcategoria: f[2] || '' });
+    });
+  }
+
+  try {
+    CacheService.getScriptCache().put(
+      'categorias_personalizadas', JSON.stringify(filas), VIDA_CACHE_SEGUNDOS
+    );
+  } catch (error) {
+    console.error('No se pudo cachear las categorias personalizadas: ' + error);
+  }
+  return filas;
+}
+
+/**
+ * "tipo" es 'gasto' o 'ingreso'. Una subcategoria vacia registra una
+ * categoria nueva sin subcategorias.
+ */
+function guardarCategoriaPersonalizada(tipo, categoria, subcategoria) {
+  try {
+    CacheService.getScriptCache().remove('categorias_personalizadas');
+  } catch (error) {
+    console.error('No se pudo limpiar la cache de categorias: ' + error);
+  }
+  hoja(HOJA_CATEGORIAS_PERSONALIZADAS).appendRow(
+    [tipo, categoria, subcategoria || '', new Date()]
+  );
 }
 
 /**

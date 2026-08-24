@@ -107,12 +107,15 @@ class RespaldoTest(unittest.TestCase):
     def tearDown(self):
         self.carpeta.cleanup()
 
-    def importar(self, movimientos, aprendizaje=None):
+    def importar(self, movimientos, aprendizaje=None, categorias=None):
         hojas = {"movimientos": [ENCABEZADOS] + movimientos}
         if aprendizaje is not None:
             hojas["aprendizaje"] = [
                 ["comercio", "categoria", "subcategoria", "confirmaciones",
                  "actualizado"]] + aprendizaje
+        if categorias is not None:
+            hojas["categorias_personalizadas"] = [
+                ["tipo", "categoria", "subcategoria", "creado"]] + categorias
         escribir_xlsx(self.xlsx, hojas)
         sys.argv = ["respaldar.py", self.xlsx]
         # La salida del comando no interesa aca y ensucia el informe de pruebas.
@@ -179,6 +182,58 @@ class RespaldoTest(unittest.TestCase):
                                     3, como_serial(datetime.datetime(2026, 8, 1))]])
         filas = self.consultar("SELECT comercio, confirmaciones FROM aprendizaje")
         self.assertEqual(filas, [("JUMBO CENTRAL", 3)])
+
+    # Las categorias que el usuario crea desde el bot no estan en el codigo.
+    # Si no se respaldan, se pierden con la hoja, que es justo lo que este
+    # respaldo promete evitar.
+    def test_guarda_las_categorias_creadas_desde_el_bot(self):
+        creado = como_serial(datetime.datetime(2026, 8, 22, 10, 0))
+        self.importar(
+            [movimiento("a1", "JUMBO", 12500, datetime.datetime(2026, 8, 1))],
+            categorias=[
+                ["gasto", "💸 Carrete", "", creado],
+                ["gasto", "🐾 Mascotas", "Veterinario", creado],
+            ])
+
+        filas = self.consultar(
+            "SELECT tipo, categoria, subcategoria FROM categorias_personalizadas"
+            " ORDER BY categoria")
+        self.assertEqual(filas, [
+            ("gasto", "🐾 Mascotas", "Veterinario"),
+            ("gasto", "💸 Carrete", ""),
+        ])
+
+    def test_una_categoria_repetida_en_la_hoja_no_se_duplica_en_la_base(self):
+        creado = como_serial(datetime.datetime(2026, 8, 22, 10, 0))
+        self.importar(
+            [movimiento("a1", "JUMBO", 12500, datetime.datetime(2026, 8, 1))],
+            categorias=[
+                ["gasto", "💸 Carrete", "", creado],
+                ["gasto", "💸 Carrete", "", creado],
+            ])
+
+        total = self.consultar(
+            "SELECT COUNT(*) FROM categorias_personalizadas")[0][0]
+        self.assertEqual(total, 1)
+
+    def test_una_categoria_borrada_de_la_hoja_sigue_en_la_base(self):
+        creado = como_serial(datetime.datetime(2026, 8, 22, 10, 0))
+        mov = [movimiento("a1", "JUMBO", 12500, datetime.datetime(2026, 8, 1))]
+        self.importar(mov, categorias=[["gasto", "💸 Carrete", "", creado]])
+        self.importar(mov, categorias=[])   # el usuario la borró de la hoja
+
+        filas = self.consultar(
+            "SELECT categoria FROM categorias_personalizadas")
+        self.assertEqual(filas, [("💸 Carrete",)])
+
+    # Un respaldo hecho antes de que existiera esta hoja no puede fallar.
+    def test_un_excel_sin_esa_hoja_se_importa_igual(self):
+        self.assertEqual(
+            self.importar([movimiento("a1", "JUMBO", 12500,
+                                      datetime.datetime(2026, 8, 1))]), 0)
+        total = self.consultar(
+            "SELECT COUNT(*) FROM categorias_personalizadas")[0][0]
+        self.assertEqual(total, 0)
 
     def test_deja_constancia_de_cada_respaldo(self):
         self.importar([movimiento("a1", "JUMBO", 12500, datetime.datetime(2026, 8, 1))])

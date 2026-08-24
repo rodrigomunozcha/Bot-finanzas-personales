@@ -54,14 +54,16 @@ con lo que salió de la cuenta.
 devolución de plata adelantada. El bot pregunta primero si es ingreso o
 reembolso.
 
-**De una transferencia enviada, el mensaje hace de comercio.** El correo trae
-todos los datos del destinatario y no se toma ninguno: solo el monto, el mensaje
-que escribiste y la fecha. Ese mensaje ocupa el lugar del nombre del comercio
-para que el aprendizaje funcione, porque con un nombre fijo como "Transferencia
-enviada" pasaría algo peor que no aprender: a la tercera transferencia
-clasificada igual, todas las siguientes se clasificarían solas con esa categoría
-y sin preguntar. Así, un arriendo que va cada mes con el mismo texto se aprende,
-y una transferencia suelta sigue preguntando.
+**De una transferencia, propia o recibida, no se lee el texto libre.** El
+correo trae todos los datos del destinatario o del remitente, más el mensaje
+que se escribió al transferir, y de ahí solo se toman el monto y la fecha. Una
+versión anterior sí usaba ese mensaje como nombre de comercio, y en un caso
+real ese mensaje era una dirección: iba a terminar en la hoja, en el
+aprendizaje, en Telegram y en el respaldo. El texto libre de un correo lo
+escribe una persona para otra persona, y ahí cabe cualquier cosa. Por eso todas
+las transferencias comparten un nombre fijo ("Transferencia enviada" o
+"Transferencia recibida") y nunca se aprenden solas: siempre preguntan la
+categoría. La regla completa está en [CLAUDE.md](CLAUDE.md).
 
 **De los correos de transferencia no se extrae ningún dato identificatorio.**
 Traen RUT, nombre completo, correo y número de cuenta. El lector toma solo monto,
@@ -162,6 +164,7 @@ termina. El bot se encarga de recordarte cuando pasa una semana.
 - [x] Informes de semana y mes, con detalle gasto por gasto
 - [x] Entrada manual: gastos, efectivo, giros e ingresos
 - [x] Saldo de la cuenta corriente
+- [x] Añadir categoría o subcategoría desde el bot, sin tocar el código
 - [ ] Presupuesto por categoría, para que las cifras tengan veredicto
 - [ ] Formatos de correo que faltan: giro por cajero, anulación
 - [ ] Poda de subcategorías que no aplican en Chile

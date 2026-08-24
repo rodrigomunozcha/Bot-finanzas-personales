@@ -83,6 +83,19 @@ def crear_base(con):
             actualizado    TEXT
         );
 
+        -- Categorias que el usuario creo desde el bot. No estan en el codigo:
+        -- si se pierde la hoja de Google y no estuvieran aca, se perderian, y
+        -- eso contradice la razon de ser de este respaldo. La clave es la
+        -- pareja categoria + subcategoria, porque una categoria puede tener
+        -- varias filas (una por subcategoria) y ninguna es "la principal".
+        CREATE TABLE IF NOT EXISTS categorias_personalizadas (
+            tipo         TEXT,
+            categoria    TEXT,
+            subcategoria TEXT,
+            creado       TEXT,
+            PRIMARY KEY (tipo, categoria, subcategoria)
+        );
+
         CREATE TABLE IF NOT EXISTS respaldos (
             cuando   TEXT,
             archivo  TEXT,
@@ -188,6 +201,27 @@ def importar_aprendizaje(con, hoja):
         )
 
 
+def importar_categorias_personalizadas(con, hoja):
+    """Las categorias que el usuario agrego desde el bot.
+
+    Se insertan sin borrar: igual que los movimientos, una categoria que
+    desaparezca de la hoja sigue estando aca. Las filas repetidas de la hoja
+    (agregar dos veces la misma categoria escribe dos) colapsan solas por la
+    clave primaria, asi que la copia local queda mas limpia que el original.
+    """
+    for cruda in filas_como_diccionarios(hoja):
+        if not cruda.get("tipo") or not cruda.get("categoria"):
+            continue
+        con.execute(
+            "INSERT OR REPLACE INTO categorias_personalizadas"
+            " (tipo, categoria, subcategoria, creado) VALUES (?, ?, ?, ?)",
+            (str(cruda["tipo"]),
+             str(cruda["categoria"]),
+             str(cruda.get("subcategoria") or ""),
+             limpiar("creado", cruda.get("creado", "")))
+        )
+
+
 def exportar_csv(con):
     """CSV con marca de orden de bytes, para que Excel respete los acentos."""
     filas = con.execute(
@@ -228,6 +262,9 @@ def main():
         nuevos, editados = importar_movimientos(con, hojas["movimientos"], ahora)
         if "aprendizaje" in hojas:
             importar_aprendizaje(con, hojas["aprendizaje"])
+        if "categorias_personalizadas" in hojas:
+            importar_categorias_personalizadas(
+                con, hojas["categorias_personalizadas"])
 
         total = con.execute("SELECT COUNT(*) FROM movimientos").fetchone()[0]
         con.execute("INSERT INTO respaldos VALUES (?, ?, ?, ?, ?)",

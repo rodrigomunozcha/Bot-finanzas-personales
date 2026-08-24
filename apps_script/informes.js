@@ -184,7 +184,7 @@ function redactarInforme(titulo, resumen, previo) {
   }
   resumen.categorias.slice(0, 8).forEach(function (c) {
     var parte = Math.round(c.total * 100 / resumen.total);
-    lineas.push('· ' + c.nombre + '  ' + formatearMonto(c.total, 'CLP') +
+    lineas.push('· ' + tgEscapar(c.nombre) + '  ' + formatearMonto(c.total, 'CLP') +
       '  (' + parte + '%)' + flecha(variacion(c.total, previoPorCategoria[c.nombre])));
   });
 
@@ -249,7 +249,8 @@ function detallePorDia(gastos) {
     }
     lineas.push('  ' + formatearMonto(Number(m.montoClp), 'CLP') + '  ' +
       tgEscapar(m.comercio) +
-      (m.categoria ? '  <i>' + m.categoria + '</i>' : '  <i>sin categoría</i>'));
+      (m.categoria ? '  <i>' + tgEscapar(m.categoria) + '</i>'
+        : '  <i>sin categoría</i>'));
   });
 
   if (gastos.length > MAXIMO_EN_DETALLE) {

@@ -153,6 +153,8 @@ function revisarSalud() {
     (pendientes ? '  (usa /pendientes en el bot)' : ''));
   lineas.push('  comercios aprendidos: ' +
     Math.max(0, hoja(HOJA_APRENDIZAJE).getLastRow() - 1));
+  lineas.push('  categorías agregadas desde el bot: ' +
+    Math.max(0, hoja(HOJA_CATEGORIAS_PERSONALIZADAS).getLastRow() - 1));
   var noEntendidos = hoja(HOJA_NO_ENTENDIDOS);
   lineas.push('  correos no entendidos: ' +
     Math.max(0, noEntendidos.getLastRow() - 1));

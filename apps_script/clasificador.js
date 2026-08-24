@@ -134,6 +134,82 @@ function faltanParaAutomatico(confirmaciones) {
   return Math.max(0, CONFIRMACIONES_PARA_AUTOMATICO - confirmaciones);
 }
 
+// --- Categorias que el usuario agrega desde el bot --------------------------
+//
+// Las categorias de datos/categorias_gasto.json vienen con el codigo: se
+// despliegan igual para cualquiera que instale esto. Las que el usuario agrega
+// con "Añadir categoria" son suyas, viven en su planilla y nunca en el
+// repositorio, igual que el aprendizaje por comercio.
+
+/** Nombre mas largo que se acepta. Mas que eso no entra bien en un boton. */
+var MAX_LARGO_CATEGORIA = 40;
+
+/** Espacios sobrantes fuera y adentro, sin forzar mayusculas ni sacar emojis. */
+function limpiarNombreCategoria(texto) {
+  return String(texto == null ? '' : texto).trim().replace(/\s+/g, ' ');
+}
+
+/** El nombre limpio, o null si esta vacio o es mas largo de lo que entra. */
+function nombreDeCategoriaValido(texto) {
+  var limpio = limpiarNombreCategoria(texto);
+  if (!limpio || limpio.length > MAX_LARGO_CATEGORIA) return null;
+  return limpio;
+}
+
+/**
+ * Para comparar sin que "Mascotas", "mascotas" y " Mascotas " cuenten como
+ * tres categorias distintas. No compara sin el emoji: si el usuario le pone
+ * uno distinto, es a proposito una categoria distinta.
+ */
+function claveDeCategoria(nombre) {
+  return limpiarNombreCategoria(nombre).toLowerCase();
+}
+
+/**
+ * Junta el arbol que trae el codigo con las filas que el usuario agrego desde
+ * el bot. No modifica el arbol que recibe.
+ *
+ * Las categorias nuevas quedan al final, en el orden en que se agregaron. Eso
+ * no es solo prolijidad: los botones de categoria le indican al bot cual se
+ * eligio por su posicion en este arbol (0, 1, 2...), y esos numeros ya estan
+ * escritos en mensajes de Telegram viejos. Agregar solo al final asegura que
+ * un boton de ayer siga apuntando a la categoria de ayer.
+ */
+function arbolConPersonalizadas(base, filas) {
+  var arbol = base.map(function (c) {
+    return { nombre: c.nombre, subcategorias: c.subcategorias.slice() };
+  });
+
+  (filas || []).forEach(function (fila) {
+    var indice = indiceDeCategoria(arbol, fila.categoria);
+    var categoria;
+    if (indice < 0) {
+      categoria = { nombre: fila.categoria, subcategorias: [] };
+      arbol.push(categoria);
+    } else {
+      categoria = arbol[indice];
+    }
+
+    if (!fila.subcategoria) return;
+    var clave = claveDeCategoria(fila.subcategoria);
+    var yaEsta = categoria.subcategorias.some(function (s) {
+      return claveDeCategoria(s) === clave;
+    });
+    if (!yaEsta) categoria.subcategorias.push(fila.subcategoria);
+  });
+
+  return arbol;
+}
+
+/** Indice de una categoria por nombre, o -1 si no esta en el arbol. */
+function indiceDeCategoria(arbol, nombre) {
+  var clave = claveDeCategoria(nombre);
+  for (var i = 0; i < arbol.length; i++) {
+    if (claveDeCategoria(arbol[i].nombre) === clave) return i;
+  }
+  return -1;
+}
+
 if (typeof module !== 'undefined') {
   // En Node hay que traer la semilla que en Apps Script ya es global.
   if (typeof COMERCIOS_SEMILLA === 'undefined') {
@@ -144,5 +220,7 @@ if (typeof module !== 'undefined') {
     normalizarComercio, proponerClasificacion, registrarRespuesta,
     faltanParaAutomatico, esComercioGenerico,
     CONFIRMACIONES_PARA_AUTOMATICO, COMERCIOS_GENERICOS,
+    nombreDeCategoriaValido, limpiarNombreCategoria, claveDeCategoria,
+    arbolConPersonalizadas, indiceDeCategoria, MAX_LARGO_CATEGORIA,
   };
 }

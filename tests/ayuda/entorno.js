@@ -89,6 +89,8 @@ function crearEntorno(propiedades = {}) {
       ['comercio', 'categoria', 'subcategoria', 'confirmaciones', 'actualizado'], contador),
     no_entendidos: hojaFalsa('no_entendidos',
       ['fecha', 'asunto', 'correoId', 'extracto'], contador),
+    categorias_personalizadas: hojaFalsa('categorias_personalizadas',
+      ['tipo', 'categoria', 'subcategoria', 'creado'], contador),
   };
 
   const almacenPropiedades = Object.assign(
@@ -316,6 +318,10 @@ function crearEntorno(propiedades = {}) {
     },
     aprendizaje() {
       const [encabezados, ...filas] = hojas.aprendizaje._filas;
+      return filas.map((f) => Object.fromEntries(encabezados.map((c, j) => [c, f[j]])));
+    },
+    categoriasPersonalizadas() {
+      const [encabezados, ...filas] = hojas.categorias_personalizadas._filas;
       return filas.map((f) => Object.fromEntries(encabezados.map((c, j) => [c, f[j]])));
     },
   };
