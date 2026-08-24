@@ -9,6 +9,31 @@ nunca se cargan juntos ni se pisan.
 Clasifica gastos por Telegram leyendo los correos de Banco de Chile. El README
 explica qué hace y cómo se instala. Este archivo dice cómo se trabaja sobre él.
 
+## Español neutro, siempre
+
+Es la máxima principal del usuario, por encima de cualquier detalle técnico.
+Aplica a **todo**: la conversación con él, el código, los comentarios, la
+documentación, los mensajes de commit y los textos que el bot le manda.
+
+**Nada de voseo rioplatense.** Es la forma concreta en que ya falló:
+
+| Nunca | Siempre |
+|---|---|
+| tenés, querés, podés, hacés | tienes, quieres, puedes, haces |
+| escribís, apretás, elegís | escribes, aprietas, eliges |
+| agregá, apretá, mirá, revisá | agrega, aprieta, mira, revisa |
+| vos, sos, contame, decime | tú, eres, cuéntame, dime |
+
+Tampoco mexicanismos, españolismos ni chilenismos, aunque él sea chileno.
+Neutro significa que funciona en cualquier país hispanohablante.
+
+Sin em-dash ni punto y coma: usa " - " con espacios a ambos lados, o parte la
+frase en dos.
+
+El riesgo real no está en el código, que se revisa con calma. Está en los
+mensajes de cierre al final de una sesión larga, cuando baja la guardia. Ahí
+fue donde falló.
+
 ## La regla que manda sobre todas las demás
 
 **El sistema nunca obtiene datos personales. No los tacha después: no los lee.**
@@ -87,14 +112,13 @@ Cada mensaje y cada botón dice qué hace y qué va a pasar. Quien usa esto no t
 la terminal abierta ni sabe cómo está hecho por dentro. No des el contexto por
 supuesto.
 
-## Idioma y estilo
+## Estilo de los comentarios
 
-- Todo en español neutro: código, comentarios, documentación, mensajes al usuario
-  y commits.
-- Sin em-dash ni punto y coma. Usa " - " con espacios a ambos lados, o parte la
-  frase en dos.
-- Los comentarios explican **por qué**, no qué. El estilo del repo es dejar dicho
-  qué se probó y qué falló, para que nadie lo vuelva a intentar.
+El idioma está arriba del todo, en "Español neutro, siempre", y no se repite
+aquí: dos listas con la misma regla terminan separándose y una queda mintiendo.
+
+Los comentarios explican **por qué**, no qué. El estilo del repo es dejar dicho
+qué se probó y qué falló, para que nadie lo vuelva a intentar.
 
 ## Apps Script tiene trampas propias
 
