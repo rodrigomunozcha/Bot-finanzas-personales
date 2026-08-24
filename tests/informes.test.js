@@ -1,13 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { crearEntorno } = require('./ayuda/entorno.js');
-
-const hoy = () => new Date().toISOString().substring(0, 10);
-const haceDias = (n) => {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().substring(0, 10);
-};
+// En hora local, igual que las arma el código. El porqué está en fechas.js.
+const { hoy, haceDias } = require('./ayuda/fechas.js');
 
 const gasto = (comercio, clp, dia, categoria = '🍴 Alimentación', extra = {}) =>
   Object.assign({

@@ -1,13 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { crearEntorno } = require('./ayuda/entorno.js');
-
-const hoy = () => new Date().toISOString().substring(0, 10);
-const haceDias = (n) => {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().substring(0, 10);
-};
+// En hora local, igual que las arma el código. El porqué está en fechas.js.
+const { hoy, haceDias, delMesPasado } = require('./ayuda/fechas.js');
 
 function conGastos(e, gastos) {
   gastos.forEach(([comercio, monto, dia, categoria], i) => {
@@ -103,11 +98,7 @@ test('sin gastos no manda ninguna imagen', () => {
 // El día 1 el mes en curso tiene cero gastos: informar ese sería informar nada.
 test('el informe mensual automático mira el mes que cerró', () => {
   const e = crearEntorno();
-  const mesPasado = new Date();
-  mesPasado.setDate(0);
-  const dia = mesPasado.toISOString().substring(0, 10);
-
-  conGastos(e, [['JUMBO', 50000, dia]]);
+  conGastos(e, [['JUMBO', 50000, delMesPasado()]]);
   e.contexto.informeMensualAutomatico();
 
   assert.match(e.ultimoTexto(), /mes cerrado/);
