@@ -161,14 +161,29 @@ test('compra en dólares: queda pendiente y la cierra el pago de la tarjeta', ()
   assert.equal(pago.tipo, 'interno', 'el pago no se cuenta como gasto nuevo');
 });
 
-test('un correo desconocido se guarda en vez de perderse', () => {
+test('un formato de movimiento que no conocemos se guarda en vez de perderse', () => {
   const e = crearEntorno();
-  entra(e, 'Tu estado de cuenta está disponible', 'Ingresa a la app para revisarlo.');
+  entra(e, 'Giro con Tarjeta de Débito',
+    'Te informamos de un giro por $40.000 el 01/08/2026 10:00.');
 
   assert.equal(e.movimiento(), null, 'no se inventa un movimiento');
   const [, ...noEntendidos] = e.hojas.no_entendidos._filas;
   assert.equal(noEntendidos.length, 1);
-  assert.equal(noEntendidos[0][1], 'Tu estado de cuenta está disponible');
+  assert.equal(noEntendidos[0][1], 'Giro con Tarjeta de Débito');
+});
+
+// La idea es del usuario: los asuntos de movimiento se repiten, los de
+// publicidad cambian en cada campaña, así que perseguirlos uno por uno no
+// termina nunca. Lo que los separa de verdad es que un aviso de plata trae la
+// cifra y una campaña no.
+test('la publicidad del banco no ensucia la bandeja de no entendidos', () => {
+  const e = crearEntorno();
+  entra(e, 'En estas Fiestas Patrias, cuida tus tarjetas',
+    'Revisa nuestros consejos de seguridad en la app.');
+
+  const [, ...noEntendidos] = e.hojas.no_entendidos._filas;
+  assert.equal(noEntendidos.length, 0);
+  assert.equal(e.propiedades.CORREOS_SIN_MONTO, '1', 'pero queda contado');
 });
 
 test('el mismo correo dos veces no duplica el gasto', () => {

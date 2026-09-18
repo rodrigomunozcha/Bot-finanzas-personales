@@ -320,7 +320,7 @@ test('avisa de los correos no entendidos una sola vez', () => {
   e.contexto.procesarMensaje({
     getId: () => 'raro',
     getSubject: () => 'Aviso nuevo del banco',
-    getPlainBody: () => 'algo que no calza con ningún lector',
+    getPlainBody: () => 'Un movimiento por $12.345 que no calza con ningún lector',
   });
 
   e.contexto.latidoDiario();

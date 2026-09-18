@@ -164,6 +164,8 @@ function revisarSalud() {
   var noEntendidos = hoja(HOJA_NO_ENTENDIDOS);
   lineas.push('  correos no entendidos: ' +
     Math.max(0, noEntendidos.getLastRow() - 1));
+  lineas.push('  correos sin monto descartados (publicidad): ' +
+    Number(guardadas.CORREOS_SIN_MONTO || 0));
 
   // Hasta cierta version se guardaba un extracto del cuerpo de esos correos, y
   // el censor de entonces no tachaba nombres ni direcciones. Si quedan filas de

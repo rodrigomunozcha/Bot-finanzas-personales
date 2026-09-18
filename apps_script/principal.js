@@ -87,6 +87,16 @@ function procesarMensaje(mensaje) {
     // vale guardar el correo de nadie por eso. Ahora queda el asunto y un
     // enlace: quien instalo esto abre su propio correo, mira lo que hay, y
     // decide que comparte.
+    // Sin monto no es un movimiento, es publicidad del banco. Va a un contador
+    // en vez de a la bandeja, para que la bandeja siga sirviendo de alarma de
+    // formatos que faltan. Se cuenta y no se descarta del todo: si algun dia
+    // esto bota algo que importaba, el numero lo delata en revisarSalud.
+    if (!pareceMovimiento(cuerpo)) {
+      var propiedades = PropertiesService.getScriptProperties();
+      propiedades.setProperty('CORREOS_SIN_MONTO',
+        String(Number(propiedades.getProperty('CORREOS_SIN_MONTO') || 0) + 1));
+      return;
+    }
     registrarNoEntendido(asunto, correoId, enlaceAlCorreo(mensaje));
     return;
   }

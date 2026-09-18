@@ -50,10 +50,21 @@ test('el asunto distingue credito de debito con el mismo cuerpo', () => {
   assert.equal(r.monto, 12500);
 });
 
+// Estructura del correo real de una compra con tarjeta de credito, con los
+// valores cambiados. La redaccion es distinta a la del debito: aca NO dice
+// "cargo a". La version anterior de esta prueba lo inventaba por analogia con
+// el correo de debito, pasaba, y no probaba nada: en produccion ninguna compra
+// con credito se leyo jamas.
+const COMPRA_CREDITO = {
+  asunto: 'Compra con Tarjeta de Crédito',
+  cuerpo: 'Te informamos que se ha realizado una compra por US$49,00 con Tarjeta de ' +
+    'Crédito ****1234 en TIENDA* SUSCRIPCION el 01/08/2026 03:22.\n' +
+    'Revisa Saldos y Movimientos en App Mi Banco o Banco en Línea.\n' +
+    'Más información 600 000 0000.',
+};
+
 test('compra en dolares queda pendiente de conversion, sin estimar pesos', () => {
-  const cuerpo = 'Te informamos que se ha realizado una compra por US$49,00 con cargo a ' +
-    'Tarjeta de Crédito ****1234 en OPENAI el 01/08/2026 03:22.';
-  const r = p.leerCorreo('Compra con Tarjeta de Crédito', cuerpo);
+  const r = p.leerCorreo(COMPRA_CREDITO.asunto, COMPRA_CREDITO.cuerpo);
   assert.equal(r.moneda, 'USD');
   assert.equal(r.monto, 49);
   assert.equal(r.montoClp, null, 'no se debe inventar un tipo de cambio');
@@ -310,4 +321,39 @@ test('el mediodía y la medianoche en 12 horas se convierten bien', () => {
 test('sin a. m. / p. m. la hora se toma tal cual, como 24 horas', () => {
   assert.equal(p.normalizarFechaLarga('1', 'enero', '2026', '17:08', undefined),
     '2026-01-01T17:08');
+});
+
+test('el comercio de una compra con crédito sale entero, asterisco incluido', () => {
+  const r = p.leerCorreo(COMPRA_CREDITO.asunto, COMPRA_CREDITO.cuerpo);
+  assert.equal(r.comercio, 'TIENDA* SUSCRIPCION');
+  assert.equal(r.medioPago, 'credito');
+  assert.equal(r.fechaHora, '2026-08-01T03:22');
+});
+
+// La redacción del débito no puede romperse al aceptar la del crédito.
+test('la compra con débito sigue leyéndose igual', () => {
+  const r = p.leerCorreo(COMPRA_DEBITO.asunto, COMPRA_DEBITO.cuerpo);
+  assert.equal(r.comercio, 'JUMBO CENTRAL');
+  assert.equal(r.medioPago, 'debito');
+  assert.equal(r.monto, 12500);
+});
+
+// El filtro que separa un movimiento de una campaña publicitaria.
+test('un correo con monto parece movimiento, uno sin monto no', () => {
+  assert.equal(p.pareceMovimiento('compra por $12.500 en JUMBO'), true);
+  assert.equal(p.pareceMovimiento('una compra por US$49,00'), true);
+  assert.equal(p.pareceMovimiento('Monto USD 150'), true);
+  assert.equal(p.pareceMovimiento('Protege tus tarjetas en cada compra'), false);
+  assert.equal(p.pareceMovimiento('Ingresa a la app para revisar tu estado'), false);
+  assert.equal(p.pareceMovimiento(''), false);
+});
+
+// Si un formato nuevo dejara de llegar a la bandeja, dejaríamos de enterarnos
+// de que existe. Los cuatro de hoy se descubrieron justo así.
+test('todos los formatos que faltan siguen pasando el filtro', () => {
+  ['Te informamos que se ha realizado un giro por $40.000 el 01/08/2026 10:00.',
+    'Se ha efectuado el pago de tu tarjeta por $250.000.',
+    'Te informamos que se ha realizado una compra por US$12,50.'].forEach((cuerpo) => {
+    assert.equal(p.pareceMovimiento(cuerpo), true, cuerpo);
+  });
 });

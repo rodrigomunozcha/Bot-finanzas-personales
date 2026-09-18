@@ -63,6 +63,33 @@ var ASUNTOS_IGNORADOS = [
   /protege tus tarjetas f[ií]sicas/i,
 ];
 
+/**
+ * true si el correo podria ser un movimiento, mirando si trae un monto.
+ *
+ * La idea la propuso el usuario, con el argumento correcto: los correos de
+ * movimiento tienen siempre los mismos asuntos, y los de publicidad cambian en
+ * cada campana, asi que perseguir asuntos de publicidad uno por uno no termina
+ * nunca.
+ *
+ * Lo que no se puede hacer es la version literal, una lista blanca de asuntos
+ * permitidos, porque entonces un formato de movimiento que todavia no conocemos
+ * desapareceria en silencio. Esa bandeja existe para descubrir formatos que
+ * faltan, y asi se encontraron los cuatro de hoy.
+ *
+ * Esta prueba es estructural y no depende del asunto: un aviso de plata que se
+ * movio trae la cifra, siempre, con su simbolo. Una campana publicitaria no.
+ * Asi que un formato nuevo de movimiento sigue llegando a la bandeja, y la
+ * publicidad deja de llegar.
+ *
+ * Aun asi no se descarta en silencio: lo que cae aca se cuenta, y el contador se
+ * ve en revisarSalud. Si algun dia se pierde algo por esto, queda el rastro.
+ */
+var RE_MONTO_EN_CUERPO = /(?:US\$|USD|EUR|€|\$)\s*\d/;
+
+function pareceMovimiento(cuerpo) {
+  return RE_MONTO_EN_CUERPO.test(normalizarTexto(cuerpo || ''));
+}
+
 /** true si el asunto es de un correo que se descarta a proposito. */
 function esCorreoIgnorado(asunto) {
   var texto = String(asunto || '');
@@ -185,9 +212,24 @@ function normalizarFechaLarga(dia, mes, anio, hora, ampm) {
  *   "Te informamos que se ha realizado una compra por $12.500 con cargo a
  *    Cuenta ****1234 en JUMBO CENTRAL el 01/08/2026 13:20."
  */
+/**
+ * Las dos redacciones que usa el banco para la misma frase:
+ *
+ *   debito:  "... compra por $12.500 con cargo a Cuenta ****1234 en JUMBO ..."
+ *   credito: "... compra por US$49,00 con Tarjeta de Crédito ****1234 en ..."
+ *
+ * El credito no dice "cargo a". Durante meses este lector lo exigia igual, y
+ * por eso ninguna compra con tarjeta de credito se leyo nunca: el asunto
+ * calzaba, el cuerpo no, y el correo terminaba en la bandeja de no entendidos.
+ *
+ * El origen del error importa mas que el error. La prueba del credito se
+ * escribio a mano, por analogia con el correo de debito, sin tener a la vista
+ * un correo de credito real. Pasaba, y no probaba nada. Una prueba inventada es
+ * peor que no tener prueba, porque da por cubierto lo que no lo esta.
+ */
 var RE_COMPRA = new RegExp(
   'compra por\\s*(US\\$|USD|EUR|€|\\$)\\s*([\\d.,]+)' +
-  '\\s*con cargo a\\s+(.+?)\\s*\\*{2,}\\s*(\\d{4})' +
+  '\\s*con\\s+(?:cargo a\\s+)?(.+?)\\s*\\*{2,}\\s*(\\d{4})' +
   '\\s+en\\s+(.+?)' +
   '\\s+el\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(\\d{2}:\\d{2})',
   'i'
@@ -439,5 +481,6 @@ if (typeof module !== 'undefined') {
     normalizarMonto, normalizarTexto, normalizarFecha, normalizarFechaLarga,
     detectarMoneda, MESES,
     COMERCIO_TRANSFERENCIA_ENVIADA, COMERCIO_TRANSFERENCIA_RECIBIDA,
+    pareceMovimiento,
   };
 }
