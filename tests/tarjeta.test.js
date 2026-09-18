@@ -5,7 +5,7 @@ const t = require('../apps_script/tarjeta.js');
 // Estructura del correo real del 01/08/2026. El numero de cuenta y el de
 // tarjeta ya vienen enmascarados por el propio banco.
 const PAGO = {
-  asunto: 'Comprobante pago Tarjeta de Crédito Internacional',
+  asunto: 'Pago de Tarjeta de Crédito Internacional',
   cuerpo: `Estimado(a): Nombre
 Te informamos que se ha efectuado el pago de la tarjeta de crédito internacional en forma exitosa con el siguiente detalle:
 
@@ -87,4 +87,19 @@ test('del correo de pago no se extrae ningun dato de tarjeta ni de cuenta', () =
 
 test('otro correo del banco no se confunde con un pago de tarjeta', () => {
   assert.equal(t.leerPagoTarjeta('Cargo en cuenta', 'compra por $1.000'), null);
+});
+
+// El asunto salió de la bandeja de no entendidos, donde este correo llevaba
+// meses cayendo: el lector buscaba "Comprobante pago...", que no es el asunto
+// sino un título de adentro del correo.
+test('reconoce el asunto real, y también la otra redacción por si acaso', () => {
+  assert.ok(t.leerPagoTarjeta('Pago de Tarjeta de Crédito Internacional', PAGO.cuerpo));
+  assert.ok(t.leerPagoTarjeta('Comprobante pago Tarjeta de Crédito Internacional', PAGO.cuerpo));
+});
+
+// Trampa fácil de no ver: "Nacional" está contenido en "Internacional", así
+// que un patrón descuidado lee el pago de la tarjeta en pesos como si fuera el
+// de la internacional. Son dos correos distintos y dos movimientos distintos.
+test('el pago de la tarjeta NACIONAL no lo lee este lector', () => {
+  assert.equal(t.leerPagoTarjeta('Pago de Tarjeta de Crédito Nacional', PAGO.cuerpo), null);
 });

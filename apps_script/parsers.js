@@ -47,12 +47,20 @@ var ASUNTOS = {
  * para quien instala esto, porque la bandeja de no entendidos existe para
  * avisar de formatos que faltan, y estos no van a faltar nunca.
  *
- * "Notificación por modificar o agregar un destinatario" es la que aviso de
+ * "Notificación por modificar o agregar un destinatario" es el aviso de
  * seguridad que manda el banco cuando agregas o cambias a quien le puedes
  * transferir. No trae monto ni es un gasto, asi que no hay nada que registrar.
+ *
+ * "Protege tus tarjetas fisicas" es publicidad. Esta lista se va a alargar con
+ * el tiempo, porque cada campana del banco trae un asunto distinto, y no hay
+ * forma de reconocer publicidad en general sin arriesgarse a botar un correo
+ * de verdad. Un movimiento perdido en silencio es mucho peor que un asunto de
+ * publicidad en la bandeja de no entendidos, asi que se agregan uno por uno, a
+ * mano, con el asunto exacto a la vista.
  */
 var ASUNTOS_IGNORADOS = [
   /notificaci[oó]n por modificar o agregar un destinatario/i,
+  /protege tus tarjetas f[ií]sicas/i,
 ];
 
 /** true si el asunto es de un correo que se descarta a proposito. */

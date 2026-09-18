@@ -36,7 +36,7 @@ y el análisis viven en el Mac, que es donde conviene tener los datos.
 **Los montos en moneda extranjera no se convierten solos.** El tipo de cambio
 que manda es el que Banco de Chile aplica cuando se paga la tarjeta, no el del
 día de la compra. La compra se registra en su moneda original y queda pendiente
-hasta que llega el correo "Comprobante pago Tarjeta de Crédito Internacional",
+hasta que llega el correo "Pago de Tarjeta de Crédito Internacional",
 que trae el monto real en pesos. Ahí se cierra sola.
 
 **El tipo de cambio que muestra ese correo viene redondeado y no sirve para

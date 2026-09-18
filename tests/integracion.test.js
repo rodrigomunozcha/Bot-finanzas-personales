@@ -150,7 +150,7 @@ test('compra en dólares: queda pendiente y la cierra el pago de la tarjeta', ()
   e.apretar('Sí, guardar así');
   assert.equal(e.movimiento().montoClp, '');
 
-  entra(e, 'Comprobante pago Tarjeta de Crédito Internacional',
+  entra(e, 'Pago de Tarjeta de Crédito Internacional',
     'Utilizado USD$0,00 Monto pagado USD$49,00 Tipo de cambio $949 Monto $46.518 ' +
     'sábado 01 de agosto de 2026 08:47');
 

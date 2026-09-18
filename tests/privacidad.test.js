@@ -108,7 +108,7 @@ martes 11 de agosto de 2026 17:08`,
   },
   {
     nombre: 'pago de tarjeta internacional',
-    asunto: 'Comprobante pago Tarjeta de Crédito Internacional',
+    asunto: 'Pago de Tarjeta de Crédito Internacional',
     cuerpo: 'Estimado ' + todosLosCanarios() + ' Monto pagado US$150,00 ' +
       'Utilizado US$0,00 Tipo de cambio $949 Monto $142.403 ' +
       '01 de agosto de 2026 10:30 ' + todosLosCanarios(),
@@ -345,4 +345,23 @@ test('revisarSalud sigue avisando si falta un valor o trae espacios', () => {
   const texto = saludComoTexto(e);
   assert.match(texto, /FALTA: TELEGRAM_CHAT_ID/);
   assert.match(texto, /OJO: tiene espacios sobrantes/);
+});
+
+// La publicidad del banco no es un formato que falte agregar: es un correo
+// entendido y descartado a propósito. Si entrara a no entendidos, ensuciaría
+// justo la bandeja que sirve para descubrir los lectores que faltan.
+test('la publicidad del banco se descarta a propósito', () => {
+  assert.ok(p.esCorreoIgnorado(
+    'En estas Fiestas Patrias, protege tus tarjetas físicas en cada compra'));
+});
+
+test('un correo de movimiento nunca se confunde con publicidad', () => {
+  ['Compra con Tarjeta de Crédito',
+    'Pago de Tarjeta de Crédito Nacional',
+    'Pago de Tarjeta de Crédito Internacional',
+    'Giro con Tarjeta de Débito',
+    'Transferencia a Terceros',
+    'Notificación de cargo en cuenta'].forEach((asunto) => {
+    assert.equal(p.esCorreoIgnorado(asunto), false, asunto);
+  });
 });

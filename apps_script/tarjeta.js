@@ -23,7 +23,24 @@ if (typeof require !== 'undefined' && typeof module !== 'undefined') {
   globalThis.soloCamposDelPago = _parsers.soloCamposDelPago;
 }
 
-var ASUNTO_PAGO_TARJETA = /comprobante pago tarjeta de cr[eé]dito internacional/i;
+/**
+ * El asunto real es "Pago de Tarjeta de Crédito Internacional".
+ *
+ * Durante meses este lector buscaba "Comprobante pago Tarjeta de Crédito
+ * Internacional", que no es el asunto sino un titulo que aparece dentro del
+ * correo. Nunca calzo con nada, asi que ningun pago de tarjeta se leyo y las
+ * compras en dolares se quedaron esperando para siempre. Es el mismo error que
+ * ya habia pasado con las transferencias a terceros, y se descubrio igual:
+ * mirando los asuntos que quedaron en la bandeja de no entendidos.
+ *
+ * La leccion, que vale para cualquier lector nuevo: el asunto se saca de la
+ * lista de correos de Gmail, nunca de lo que dice el correo por dentro.
+ *
+ * Se aceptan las dos formas por si el banco alguna vez manda la otra. Lo que
+ * no puede pasar es que calce con el pago NACIONAL, que es otro correo y otro
+ * movimiento, y por eso "internacional" va completo y obligatorio.
+ */
+var ASUNTO_PAGO_TARJETA = /(comprobante\s+)?pago\s+(de\s+)?tarjeta de cr[eé]dito internacional/i;
 
 // La tabla de meses vive en parsers.js. Aca hubo una copia identica, y en Apps
 // Script eso es una bomba: los dos archivos comparten el mismo ambito global,
