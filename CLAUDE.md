@@ -1,10 +1,13 @@
 # Bot de finanzas - reglas de este repositorio
 
-**Este archivo aplica solo a `la carpeta del proyecto` y a nada más.** No es una
-guía transversal ni vale para los otros proyectos del usuario. El orquestador de
-estudio tiene su propio `CLAUDE.md` en `~/la carpeta del proyecto`, que es una
-carpeta hermana de esta: ninguna está dentro de la otra, así que los dos archivos
-nunca se cargan juntos ni se pisan.
+**Este archivo aplica solo a `la carpeta del proyecto` y a nada más.** No
+es una guía transversal ni vale para los otros proyectos del usuario. El orquestador
+de estudio tiene su propio `CLAUDE.md` en `otra carpeta`,
+que es una carpeta hermana de esta: ninguna está dentro de la otra, así que los dos
+archivos nunca se cargan juntos ni se pisan.
+
+Las reglas que valen en cualquier carpeta (español neutro, nunca borrar archivos, datos
+personales nunca, costo cero) están en `~/.claude/CLAUDE.md`, que se carga siempre.
 
 Clasifica gastos por Telegram leyendo los correos de Banco de Chile. El README
 explica qué hace y cómo se instala. Este archivo dice cómo se trabaja sobre él.
@@ -93,7 +96,7 @@ escribir.
 ### Antes de cada commit
 
 ```bash
-cd la carpeta del proyecto && git diff | grep -niE 'nombre real|rut real|dirección'
+git diff | grep -niE 'nombre real|rut real|dirección'
 ```
 
 Rastrea los datos reales del dueño del repositorio sobre lo que se va a
@@ -139,7 +142,7 @@ qué se probó y qué falló, para que nadie lo vuelva a intentar.
 ## Al hacer cambios
 
 ```bash
-cd la carpeta del proyecto && npm test && node herramientas/generar_datos_js.js && npx --yes @google/clasp@latest push
+npm test && node herramientas/generar_datos_js.js && npx --yes @google/clasp@latest push
 ```
 
 - `datos.gen.js` es generado. Se edita el JSON de `datos/`, no el `.js`.

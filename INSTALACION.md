@@ -16,7 +16,7 @@ y activa la API. Sin esto el paso 3 falla.
 ## 2. Autorizar clasp
 
 ```bash
-cd la carpeta del proyecto && npx --yes @google/clasp@latest login
+npx --yes @google/clasp@latest login
 ```
 
 Se abre el navegador. Autoriza con la misma cuenta de Gmail que recibe los
@@ -25,7 +25,7 @@ correos del banco.
 ## 3. Crear el proyecto en Apps Script
 
 ```bash
-cd la carpeta del proyecto && npx --yes @google/clasp@latest create-script --type standalone --title "Finanzas" --rootDir apps_script
+npx --yes @google/clasp@latest create-script --type standalone --title "Finanzas" --rootDir apps_script
 ```
 
 **Este comando pisa `apps_script/appsscript.json`** con una plantilla por
@@ -34,13 +34,13 @@ los permisos declarados. Hay que restaurar el archivo antes de subir, o los
 gastos quedarían registrados con horas corridas.
 
 ```bash
-cd la carpeta del proyecto && git checkout apps_script/appsscript.json
+git checkout apps_script/appsscript.json
 ```
 
 ## 4. Subir el código
 
 ```bash
-cd la carpeta del proyecto && node herramientas/generar_datos_js.js && npx --yes @google/clasp@latest push
+node herramientas/generar_datos_js.js && npx --yes @google/clasp@latest push
 ```
 
 Este mismo comando sirve cada vez que cambiemos algo más adelante.
@@ -48,7 +48,7 @@ Este mismo comando sirve cada vez que cambiemos algo más adelante.
 ## 5. Guardar el token del bot
 
 ```bash
-cd la carpeta del proyecto && npx --yes @google/clasp@latest open-script
+npx --yes @google/clasp@latest open-script
 ```
 
 Ese comando abre tu proyecto en el navegador.
@@ -160,5 +160,5 @@ Si no llega:
 ## Cambios posteriores
 
 ```bash
-cd la carpeta del proyecto && npm test && node herramientas/generar_datos_js.js && npx --yes @google/clasp@latest push
+npm test && node herramientas/generar_datos_js.js && npx --yes @google/clasp@latest push
 ```
