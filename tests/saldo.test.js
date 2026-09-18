@@ -163,3 +163,49 @@ test('/ingreso enseña el signo más antes que nada', () => {
   assert.match(e.ultimoTexto(), /\+900000 sueldo/);
   assert.match(e.ultimoTexto(), /Sin él lo anoto como gasto/);
 });
+
+// Un giro no es un gasto: la plata sigue siendo tuya, solo pasó de la cuenta al
+// bolsillo. Pero sí salió de la cuenta, así que el saldo baja igual.
+test('un giro por cajero baja el saldo y sube el efectivo sin anotar', () => {
+  const e = conSaldo(1000000);
+  e.contexto.procesarMensaje({
+    getId: () => 'g1', getSubject: () => 'Giro con Tarjeta de Débito',
+    getPlainBody: () => 'Te informamos que se ha realizado un giro en Cajero por ' +
+      '$15.000 con cargo a Cuenta ****1234 el ' + manana() + ' 17:08.',
+  });
+
+  assert.equal(e.contexto.calcularSaldo().actual, 985000);
+  assert.equal(e.contexto.calcularEfectivo().disponible, 15000);
+  assert.match(e.ultimoTexto(), /Giro anotado/);
+  assert.equal(e.movimiento().tipo, 'giro', 'no es un gasto');
+});
+
+// El giro no pregunta categoría: el gasto ocurre después, cuando se usa ese
+// efectivo, y ahí se anota con "12000 efectivo".
+test('el giro no pregunta categoría', () => {
+  const e = conSaldo(1000000);
+  e.contexto.procesarMensaje({
+    getId: () => 'g2', getSubject: () => 'Giro con Tarjeta de Débito',
+    getPlainBody: () => 'Te informamos que se ha realizado un giro en Cajero por ' +
+      '$15.000 con cargo a Cuenta ****1234 el ' + manana() + ' 17:08.',
+  });
+
+  assert.equal(/categor/i.test(e.ultimoTexto()), false);
+});
+
+// Cada compra con esa tarjeta ya se anotó el día que ocurrió. Contar además el
+// pago restaría dos veces la misma plata de los informes. Del saldo sí sale.
+test('el pago de la tarjeta en pesos baja el saldo y no es gasto', () => {
+  const e = conSaldo(1000000);
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  e.contexto.procesarMensaje({
+    getId: () => 'p1', getSubject: () => 'Pago de Tarjeta de Crédito Nacional',
+    getPlainBody: () => 'Usado $0 Monto $250.000 Fecha y Hora: ' +
+      `${d.getDate()} de ${nombreDelMes(d)} 14:56 de ${d.getFullYear()},`,
+  });
+
+  assert.equal(e.contexto.calcularSaldo().actual, 750000);
+  assert.equal(e.movimiento().tipo, 'interno', 'no es un gasto');
+  assert.match(e.ultimoTexto(), /no lo cuento como gasto/i);
+});

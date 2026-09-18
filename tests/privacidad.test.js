@@ -107,6 +107,21 @@ Mensaje 	Depto 000 Calle Falsa +56900000000
 martes 11 de agosto de 2026 17:08`,
   },
   {
+    nombre: 'giro por cajero',
+    asunto: 'Giro con Tarjeta de Débito',
+    cuerpo: 'Estimado ' + todosLosCanarios() + ' Te informamos que se ha ' +
+      'realizado un giro en Cajero por $15.000 con cargo a Cuenta ****1234 ' +
+      'el 14/09/2026 17:08. ' + todosLosCanarios(),
+  },
+  {
+    nombre: 'pago de tarjeta nacional',
+    asunto: 'Pago de Tarjeta de Crédito Nacional',
+    cuerpo: 'Estimado(a): ' + todosLosCanarios() + ' Tipo de cuenta Cuenta ' +
+      'Corriente N° de cuenta 00-000-00000-00 Usado $0 Monto $250.000 ' +
+      'Fecha y Hora: Sábado, 29 de agosto 14:56 de 2026, ' +
+      'Transacción: TRANSACCION000000 ' + todosLosCanarios(),
+  },
+  {
     nombre: 'pago de tarjeta internacional',
     asunto: 'Pago de Tarjeta de Crédito Internacional',
     cuerpo: 'Estimado ' + todosLosCanarios() + ' Monto pagado US$150,00 ' +

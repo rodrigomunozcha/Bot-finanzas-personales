@@ -21,6 +21,7 @@ if (typeof require !== 'undefined' && typeof module !== 'undefined') {
   globalThis.normalizarMonto = _parsers.normalizarMonto;
   globalThis.MESES = _parsers.MESES;
   globalThis.soloCamposDelPago = _parsers.soloCamposDelPago;
+  globalThis.fechaDelBloqueHora = _parsers.fechaDelBloqueHora;
 }
 
 /**
@@ -56,7 +57,7 @@ var RE_MONTO_PAGADO = /Monto pagado\s*US?D?\$\s*([\d.,]+)/i;
 // El monto en pesos va inmediatamente despues del tipo de cambio. Hay que
 // anclarlo asi porque la palabra "Monto" tambien aparece en "Monto pagado".
 var RE_CAMBIO_Y_MONTO = /Tipo de cambio\s*\$\s*([\d.,]+)\s*Monto\s*\$\s*([\d.,]+)/i;
-var RE_FECHA_LARGA = /(\d{1,2}) de ([a-zé]+) de (\d{4})\s*(\d{2}:\d{2})/i;
+
 
 function leerPagoTarjeta(asunto, cuerpo) {
   if (!ASUNTO_PAGO_TARJETA.test(asunto)) return null;
@@ -89,18 +90,13 @@ function leerPagoTarjeta(asunto, cuerpo) {
     tasaEfectiva: montoClp / montoUsd,
 
     saldaTodo: utilizado === 0,
-    fechaHora: fechaLargaAIso(texto),
+    fechaHora: fechaDelBloqueHora(texto),
   });
 }
 
-function fechaLargaAIso(texto) {
-  var m = RE_FECHA_LARGA.exec(texto);
-  if (!m) return null;
-  var mes = MESES[m[2].toLowerCase()];
-  if (!mes) return null;
-  var dia = m[1].length === 1 ? '0' + m[1] : m[1];
-  return m[3] + '-' + mes + '-' + dia + 'T' + m[4];
-}
+// La fecha la lee fechaDelBloqueHora, en parsers.js. Aca habia una copia que
+// exigia el orden "dia de mes de anio hora". El correo del pago nacional la
+// escribe "dia de mes hora de anio", y esa copia no lo habria leido.
 
 /**
  * Reparte el pago entre las compras en dolares que estaban pendientes.
@@ -158,5 +154,5 @@ function repartirPago(pago, pendientes) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { leerPagoTarjeta, repartirPago, fechaLargaAIso };
+  module.exports = { leerPagoTarjeta, repartirPago };
 }

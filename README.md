@@ -192,7 +192,7 @@ acotada a esa sola carpeta. Un permiso de ese tamaño para leer un archivo de
 - [x] Añadir categoría o subcategoría desde el bot, sin tocar el código
 - [x] Respaldar en el momento desde el menú de Telegram, con `/respaldar`
 - [ ] Presupuesto por categoría, para que las cifras tengan veredicto
-- [ ] Formatos de correo que faltan: giro por cajero, anulación
+- [ ] Formatos de correo que faltan: anulación o reverso de una compra
 - [ ] Poda de subcategorías que no aplican en Chile
 - [x] Gráficos en los informes, enviados por Telegram
 - [ ] Narración con Ollama, cuando haya meses de datos
@@ -215,5 +215,4 @@ el seguimiento semanal.
 
 Se agregan a medida que aparezca un ejemplo real de cada uno:
 
-- Giro por cajero automático
 - Anulación o reverso de una compra

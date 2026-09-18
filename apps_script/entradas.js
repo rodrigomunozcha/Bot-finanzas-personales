@@ -49,14 +49,17 @@ function leerGastoEscrito(texto) {
 function registrarGiro(datos) {
   registrarMovimiento({
     id: nuevoId(),
-    fechaHora: ahoraComoTexto(),
+    // Escrito a mano el giro es de ahora. Leido de un correo trae su propia
+    // fecha, que puede ser de hace dias si el correo se reproceso.
+    fechaHora: datos.fechaHora || ahoraComoTexto(),
     tipo: 'giro',
-    comercio: datos.descripcion || 'Giro por cajero',
+    comercio: datos.descripcion || COMERCIO_GIRO,
     monto: datos.monto,
     moneda: 'CLP',
     montoClp: datos.monto,
     medioPago: 'efectivo',
     estado: ESTADOS.INTERNO,
+    correoId: datos.correoId,
   });
 
   var saldo = calcularEfectivo();

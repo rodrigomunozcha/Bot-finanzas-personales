@@ -357,3 +357,94 @@ test('todos los formatos que faltan siguen pasando el filtro', () => {
     assert.equal(p.pareceMovimiento(cuerpo), true, cuerpo);
   });
 });
+
+// --- Giro por cajero -------------------------------------------------------
+//
+// Estructura del correo real, con los valores cambiados. Es la misma frase de
+// una compra con una diferencia que importa: no hay comercio.
+const GIRO = {
+  asunto: 'Giro con Tarjeta de Débito',
+  cuerpo: 'Te informamos que se ha realizado un giro en Cajero por $15.000 con ' +
+    'cargo a Cuenta ****1234 el 14/09/2026 17:08.\n' +
+    'Revisa Saldos y Movimientos en App Mi Banco o Banco en Línea.\n' +
+    'Más información 600 000 0000.',
+};
+
+test('el giro se lee como giro y no como gasto', () => {
+  const r = p.leerCorreo(GIRO.asunto, GIRO.cuerpo);
+  assert.equal(r.tipo, 'giro');
+  assert.equal(r.monto, 15000);
+  assert.equal(r.moneda, 'CLP');
+  assert.equal(r.montoClp, 15000);
+  assert.equal(r.medioPago, 'efectivo');
+  assert.equal(r.fechaHora, '2026-09-14T17:08');
+});
+
+// El correo dice "Cajero" sin dirección, pero aunque la trajera no se leería:
+// dónde estuvo una persona a una hora concreta es justo lo que no se toma.
+test('del giro no sale de dónde se sacó la plata', () => {
+  const r = p.leerCorreo(GIRO.asunto, GIRO.cuerpo);
+  assert.equal(r.comercio, 'Giro por cajero');
+  assert.equal(JSON.stringify(r).includes('1234'), false, 'ni los dígitos de la cuenta');
+});
+
+// --- Pago de la tarjeta en pesos -------------------------------------------
+const PAGO_NACIONAL = {
+  asunto: 'Pago de Tarjeta de Crédito Nacional',
+  cuerpo: `Comprobante pago Tarjeta de Crédito Nacional
+Estimado(a): Nombre Apellido
+Te informamos que se ha efectuado el pago de la tarjeta de crédito nacional en forma exitosa con el siguiente detalle:
+
+Origen
+Tipo de cuenta 	Cuenta Corriente
+N° de cuenta 	00-000-00000-00
+
+Destino
+Tipo de tarjeta Tipo 	Tarjeta de Crédito
+N° de tarjeta Número 	************1234
+Usado 	$0
+
+Monto 	$250.000
+
+Fecha y Hora:
+
+Sábado, 29 de agosto 14:56 de 2026,
+
+Transacción:
+TRANSACCION000000`,
+};
+
+test('el pago de la tarjeta en pesos es movimiento interno, no gasto', () => {
+  const r = p.leerCorreo(PAGO_NACIONAL.asunto, PAGO_NACIONAL.cuerpo);
+  assert.equal(r.tipo, 'interno');
+  assert.equal(r.montoClp, 250000);
+  assert.equal(r.comercio, 'Pago tarjeta de crédito nacional');
+});
+
+// Este correo escribe la hora ENTRE el mes y el año, al revés que el del pago
+// internacional. Un patrón con el orden fijo se comía la fecha entera.
+test('la fecha se lee aunque la hora venga en medio', () => {
+  assert.equal(
+    p.fechaDelBloqueHora('Fecha y Hora: Sábado, 29 de agosto 14:56 de 2026,'),
+    '2026-08-29T14:56');
+  assert.equal(
+    p.fechaDelBloqueHora('Fecha y Hora: sábado 01 de agosto de 2026 08:47'),
+    '2026-08-01T08:47');
+});
+
+// "Nacional" está contenido en "Internacional". Son dos correos, dos montos y
+// dos movimientos distintos, y confundirlos descuadra el saldo.
+test('el pago nacional y el internacional no se confunden', () => {
+  assert.equal(p.leerPagoNacional('Pago de Tarjeta de Crédito Internacional',
+    PAGO_NACIONAL.cuerpo), null);
+  assert.ok(p.leerPagoNacional(PAGO_NACIONAL.asunto, PAGO_NACIONAL.cuerpo));
+});
+
+// El monto del pago está en una fila llamada "Monto". El correo internacional
+// tiene además "Monto pagado", que es otra cifra y en otra moneda.
+test('el monto no se confunde con "Monto pagado"', () => {
+  const r = p.leerPagoNacional(PAGO_NACIONAL.asunto,
+    'Monto pagado US$150,00 Utilizado $0 Monto $250.000 ' +
+    'Fecha y Hora: Sábado, 29 de agosto 14:56 de 2026,');
+  assert.equal(r.montoClp, 250000);
+});

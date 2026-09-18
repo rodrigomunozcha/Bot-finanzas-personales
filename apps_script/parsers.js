@@ -24,6 +24,8 @@
  * clasificador.js, que los deja fuera del aprendizaje: preguntan siempre.
  */
 var COMERCIO_TRANSFERENCIA_ENVIADA = 'Transferencia enviada';
+var COMERCIO_GIRO = 'Giro por cajero';
+var COMERCIO_PAGO_NACIONAL = 'Pago tarjeta de crédito nacional';
 var COMERCIO_TRANSFERENCIA_RECIBIDA = 'Transferencia recibida';
 
 /** Los cuatro formatos que sabemos leer hoy, identificados por el asunto. */
@@ -36,6 +38,10 @@ var ASUNTOS = {
   // se confundio con el asunto al escribir este lector la primera vez.
   // Verificado contra el asunto real guardado en la hoja de no entendidos.
   TRANSFERENCIA_ENVIADA: /transferencia a terceros/i,
+  GIRO: /giro con tarjeta de d[eé]bito/i,
+  // "nacional" tiene que ir precedido de espacio y no pegado, o calzaria
+  // tambien con "internacional", que es otro correo y otro movimiento.
+  PAGO_NACIONAL: /pago\s+(?:de\s+)?tarjeta de cr[eé]dito\s+nacional\b/i,
 };
 
 /**
@@ -181,6 +187,36 @@ function dosDigitos(numero) {
  * "a. m." o "p. m.". Si no viene, se asume que "hora" ya esta en formato de
  * 24, que es como llega en los correos que no dicen a.m./p.m.
  */
+/**
+ * Fecha del bloque "Fecha y Hora", que el banco arma de dos formas distintas:
+ *
+ *   pago internacional: "sábado 01 de agosto de 2026 08:47"
+ *   pago nacional:      "Sábado, 29 de agosto 14:56 de 2026,"
+ *
+ * La hora cambia de lugar entre uno y otro. En vez de escribir un patron por
+ * cada orden, y descubrir el tercero cuando falle, se recorta el trozo que
+ * sigue a "Fecha y Hora" y se buscan las tres piezas por separado dentro de el.
+ *
+ * El recorte es corto a proposito. Buscar un año de cuatro digitos en todo el
+ * correo lo haria chocar con un monto o un numero de transaccion.
+ */
+var RE_BLOQUE_FECHA_HORA = /Fecha y Hora:?\s*(.{0,45})/i;
+var RE_DIA_Y_MES = /(\d{1,2}) de ([a-záéíóúñ]+)/i;
+var RE_ANIO = /\b(20\d{2})\b/;
+var RE_HORA_DEL_BLOQUE = /\b(\d{1,2}:\d{2})\b/;
+
+function fechaDelBloqueHora(texto) {
+  var bloque = RE_BLOQUE_FECHA_HORA.exec(texto);
+  if (!bloque) return null;
+
+  var diaMes = RE_DIA_Y_MES.exec(bloque[1]);
+  var anio = RE_ANIO.exec(bloque[1]);
+  if (!diaMes || !anio) return null;
+
+  var hora = RE_HORA_DEL_BLOQUE.exec(bloque[1]);
+  return normalizarFechaLarga(diaMes[1], diaMes[2], anio[1], hora ? hora[1] : null);
+}
+
 function normalizarFechaLarga(dia, mes, anio, hora, ampm) {
   var numeroMes = MESES[String(mes).toLowerCase()];
   if (!numeroMes) return null;
@@ -462,9 +498,88 @@ function soloCamposDelPago(lectura) {
  * hace algo distinto con el resultado), asi que tiene su propio colador dentro
  * de leerPagoTarjeta. Entre los dos no queda ningun camino sin guardia.
  */
+/**
+ * Giro por cajero.
+ *
+ * La frase es la misma de una compra con una diferencia: no hay comercio. Dice
+ * "un giro en Cajero por $X con cargo a Cuenta ****1234 el fecha hora".
+ *
+ * De donde se giro no se lee. El correo solo dice "Cajero", sin direccion, pero
+ * aunque la trajera no se leeria: la ubicacion fisica de una persona a una hora
+ * concreta es justo el tipo de dato que este sistema no toma.
+ */
+var RE_GIRO = new RegExp(
+  'giro\\s+(?:en\\s+\\S+\\s+)?por\\s*(US\\$|USD|EUR|€|\\$)\\s*([\\d.,]+)' +
+  '\\s*con\\s+(?:cargo a\\s+)?.+?\\*{2,}\\s*\\d{4}' +
+  '\\s+el\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(\\d{2}:\\d{2})',
+  'i'
+);
+
+function leerGiro(asunto, cuerpo) {
+  if (!ASUNTOS.GIRO.test(asunto)) return null;
+
+  var m = RE_GIRO.exec(normalizarTexto(cuerpo));
+  if (!m) return null;
+
+  var moneda = detectarMoneda(m[1]);
+  var monto = normalizarMonto(m[2], moneda);
+  if (monto === null) return null;
+
+  return {
+    tipo: 'giro',
+    monto: monto,
+    moneda: moneda,
+    montoClp: moneda === 'CLP' ? monto : null,
+    pendienteConversion: moneda !== 'CLP',
+    medioPago: 'efectivo',
+    comercio: COMERCIO_GIRO,
+    fechaHora: normalizarFecha(m[3], m[4]),
+  };
+}
+
+/**
+ * Pago de la tarjeta de credito en pesos.
+ *
+ * No es un gasto. Cada compra con esa tarjeta ya se anoto cuando ocurrio, asi
+ * que contar tambien el pago seria contar dos veces la misma plata. Pero si es
+ * plata que sale de la cuenta corriente, asi que tiene que bajar el saldo, y
+ * por eso se registra como movimiento interno.
+ *
+ * Es mas simple que el pago internacional: un solo monto, en pesos, sin tipo de
+ * cambio y sin compras pendientes que cerrar.
+ *
+ * "Monto" pide el signo peso pegado para no confundirse con "Monto pagado",
+ * que es otra fila y aparece en el correo del pago internacional.
+ */
+var RE_PAGO_NACIONAL_MONTO = /\bMonto\s*\$\s*([\d.,]+)/i;
+
+function leerPagoNacional(asunto, cuerpo) {
+  if (!ASUNTOS.PAGO_NACIONAL.test(asunto)) return null;
+
+  var texto = normalizarTexto(cuerpo);
+  var m = RE_PAGO_NACIONAL_MONTO.exec(texto);
+  if (!m) return null;
+
+  var monto = normalizarMonto(m[1], 'CLP');
+  if (!monto) return null;
+
+  return {
+    tipo: 'interno',
+    monto: monto,
+    moneda: 'CLP',
+    montoClp: monto,
+    pendienteConversion: false,
+    medioPago: 'transferencia',
+    comercio: COMERCIO_PAGO_NACIONAL,
+    fechaHora: fechaDelBloqueHora(texto),
+  };
+}
+
 function leerCorreo(asunto, cuerpo) {
   return soloCamposPermitidos(
     leerCompra(asunto, cuerpo) ||
+    leerGiro(asunto, cuerpo) ||
+    leerPagoNacional(asunto, cuerpo) ||
     leerTransferenciaRecibida(asunto, cuerpo) ||
     leerTransferenciaEnviada(asunto, cuerpo) ||
     null
@@ -476,6 +591,8 @@ function leerCorreo(asunto, cuerpo) {
 if (typeof module !== 'undefined') {
   module.exports = {
     leerCorreo, leerCompra, leerTransferenciaRecibida, leerTransferenciaEnviada,
+    leerGiro, leerPagoNacional, fechaDelBloqueHora,
+    COMERCIO_GIRO, COMERCIO_PAGO_NACIONAL,
     soloCamposPermitidos, soloCamposDelPago, esCorreoIgnorado,
     CAMPOS_PERMITIDOS, CAMPOS_PERMITIDOS_PAGO,
     normalizarMonto, normalizarTexto, normalizarFecha, normalizarFechaLarga,

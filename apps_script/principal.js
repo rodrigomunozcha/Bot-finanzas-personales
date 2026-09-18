@@ -113,6 +113,48 @@ function procesarMensaje(mensaje) {
     marcarConversacion();
     return idEntrada;
   }
+
+  // Ninguno de los dos pregunta categoria, porque ninguno es un gasto: son
+  // plata que cambia de lugar. El giro pasa de la cuenta al bolsillo y el gasto
+  // ocurre despues, cuando se usa ese efectivo. El pago de la tarjeta cubre
+  // compras que ya se anotaron una por una cuando ocurrieron.
+  if (lectura.tipo === 'giro') {
+    return registrarGiro({
+      monto: lectura.montoClp,
+      fechaHora: lectura.fechaHora,
+      correoId: correoId,
+    });
+  }
+  if (lectura.tipo === 'interno') return registrarPagoNacional(lectura, correoId);
+}
+
+/**
+ * Pago de la tarjeta de credito en pesos.
+ *
+ * Mas simple que el internacional: no cierra compras pendientes, porque una
+ * compra en pesos ya nacio con su monto en pesos y nunca estuvo esperando nada.
+ * Lo unico que hace falta es que la plata salga del saldo sin contarse como
+ * gasto, que es lo que significa el tipo interno.
+ */
+function registrarPagoNacional(lectura, correoId) {
+  registrarMovimiento({
+    fechaHora: lectura.fechaHora,
+    tipo: 'interno',
+    comercio: lectura.comercio,
+    monto: lectura.monto,
+    moneda: 'CLP',
+    montoClp: lectura.montoClp,
+    medioPago: 'transferencia',
+    estado: ESTADOS.INTERNO,
+    correoId: correoId,
+  });
+
+  tgEnviar('💳 <b>Pagaste tu tarjeta de crédito: ' +
+    formatearMonto(lectura.montoClp, 'CLP') + '</b>\n\n' +
+    'Lo descuento de tu saldo, pero <b>no lo cuento como gasto</b>: cada compra ' +
+    'con esa tarjeta ya quedó anotada el día que la hiciste, así que contarlo ' +
+    'otra vez sería contar dos veces la misma plata.\n\n' +
+    '<i>No tienes que hacer nada.</i>');
 }
 
 /**
