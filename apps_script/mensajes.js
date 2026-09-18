@@ -74,11 +74,10 @@ function textoDeAyuda() {
     '/efectivo  ·  cuánto efectivo giraste y no has anotado',
     '/ultimos  ·  ver y corregir los últimos gastos',
     '/pendientes  ·  lo que falta clasificar',
-    '/datos  ·  abrir la planilla y respaldarla',
+    '/datos  ·  abrir la planilla y ver cuándo fue el último respaldo',
     '',
     '<b>Menos usados</b>',
     '/olvidar COMERCIO  ·  que vuelva a preguntarte por ese comercio',
-    '/respaldado  ·  avisar que ya respaldaste',
     '/reanudar  ·  reactivarme si me froné por seguridad',
   ].join('\n');
 }

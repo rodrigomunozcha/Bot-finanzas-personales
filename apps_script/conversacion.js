@@ -540,10 +540,14 @@ function manejarTexto(texto) {
   if (cmd && cmd.nombre === 'ultimos') return mostrarUltimos();
   if (cmd && cmd.nombre === 'datos') return mostrarDatos();
 
+  // /respaldado servia cuando el respaldo era manual: el usuario avisaba que ya
+  // lo habia hecho. Ahora es automatico, y si el comando siguiera marcando la
+  // fecha serviria para callar un respaldo que de verdad esta fallando. Se
+  // conserva solo para responder, por si alguien lo escribe de memoria.
   if (cmd && cmd.nombre === 'respaldado') {
-    PropertiesService.getScriptProperties()
-      .setProperty('ULTIMO_RESPALDO', String(Date.now()));
-    tgEnviar('💾 Anotado. Dejo de recordarte el respaldo por una semana.');
+    tgEnviar('💾 Ya no hace falta avisarme. Cada domingo guardo automáticamente ' +
+      'una copia de tu planilla en tu Google Drive, en la carpeta <b>' +
+      RESPALDO_CARPETA + '</b>.\nÚltimo respaldo: ' + textoUltimoRespaldo() + '.');
     return;
   }
 
@@ -601,7 +605,6 @@ function manejarTexto(texto) {
   tgEnviar('No entendí <code>' + tgEscapar(texto) + '</code>' +
     (cmd ? ' (comando leído: <code>' + tgEscapar(cmd.nombre) + '</code>)' : '') +
     '\n\nEntiendo los botones, <code>/pendientes</code>, ' +
-    '<code>/olvidar COMERCIO</code>, <code>/respaldado</code> y ' +
-    '<code>/reanudar</code>.');
+    '<code>/olvidar COMERCIO</code> y <code>/reanudar</code>.');
 }
 

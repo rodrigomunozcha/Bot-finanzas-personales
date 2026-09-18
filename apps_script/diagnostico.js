@@ -9,6 +9,7 @@
  *   verUltimosMovimientos()  que quedo escrito en la hoja
  *   mostrarMiChatId()        solo hace falta al instalar
  *   reanudar()               levanta el freno si el bot quedo mudo
+ *   respaldarAhora()         guarda una copia en Drive en el momento
  *   limpiarContenidoDeCorreosGuardado()  borra los textos de correo viejos
  */
 
@@ -155,6 +156,11 @@ function revisarSalud() {
     Math.max(0, hoja(HOJA_APRENDIZAJE).getLastRow() - 1));
   lineas.push('  categorías agregadas desde el bot: ' +
     Math.max(0, hoja(HOJA_CATEGORIAS_PERSONALIZADAS).getLastRow() - 1));
+  lineas.push('  último respaldo en Drive: ' + textoUltimoRespaldo());
+  if (guardadas.RESPALDO_ERROR) {
+    lineas.push('    falló: ' + guardadas.RESPALDO_ERROR);
+    lineas.push('    para reintentar, corre respaldarAhora');
+  }
   var noEntendidos = hoja(HOJA_NO_ENTENDIDOS);
   lineas.push('  correos no entendidos: ' +
     Math.max(0, noEntendidos.getLastRow() - 1));
@@ -410,6 +416,46 @@ function limpiarContenidoDeCorreosGuardado() {
     '  1. Mueve datos/finanzas.db y datos/movimientos.csv a tu Escritorio',
     '  2. Vuelve a descargar la hoja y corre respaldar.py',
     '  3. Revisa los dos archivos del Escritorio y bórralos tú',
+  ]);
+}
+
+/**
+ * Guarda una copia de la planilla en Drive en el momento, y muestra el
+ * resultado.
+ *
+ * El activador lo hace solo cada domingo. Esto sirve para reintentar cuando el
+ * latido avisa que fallo, sin esperar a la semana siguiente.
+ *
+ * El resultado se calcula antes de reportar, fuera del try: reportar() muestra
+ * lanzando una excepcion, y dentro del try la atraparia el propio catch y el
+ * respaldo exitoso se mostraria como una falla.
+ */
+function respaldarAhora() {
+  var resultado = null;
+  var falla = null;
+  try {
+    resultado = exportarRespaldo();
+  } catch (error) {
+    falla = String(error && error.message ? error.message : error);
+    PropertiesService.getScriptProperties()
+      .setProperty('RESPALDO_ERROR', falla.substring(0, 300));
+  }
+
+  if (falla) {
+    reportar([
+      'El respaldo NO se guardó.',
+      '',
+      'Lo que falló:',
+      '  ' + falla,
+    ]);
+  }
+  reportar([
+    'Respaldo guardado en tu Google Drive.',
+    '',
+    'Carpeta: ' + RESPALDO_CARPETA,
+    'Archivo: ' + resultado.nombre,
+    '',
+    'Se repite solo cada domingo. No tienes que hacer nada más.',
   ]);
 }
 

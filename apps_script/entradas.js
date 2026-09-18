@@ -195,7 +195,7 @@ function mostrarUltimos() {
   });
 }
 
-/** Enlace a la planilla y recordatorio de como respaldar. */
+/** Enlace a la planilla y estado del respaldo automatico. */
 function mostrarDatos() {
   var id = PropertiesService.getScriptProperties().getProperty('HOJA_ID');
   tgEnviar([
@@ -203,12 +203,14 @@ function mostrarDatos() {
     'https://docs.google.com/spreadsheets/d/' + id + '/edit',
     'Ahí está todo lo que el bot ha registrado, y puedes editarlo a mano.',
     '',
-    '<b>Tu copia en el Mac</b>',
-    'Para bajarla y guardarla en tu disco:',
-    '1. En la planilla: Archivo → Descargar → Microsoft Excel',
-    '2. En el Mac: <code>cd la carpeta del proyecto && python3 herramientas/respaldar.py</code>',
-    '3. Vuelve y escríbeme /respaldado',
+    '<b>Tu respaldo</b>',
+    'Cada domingo guardo automáticamente una copia en tu Google Drive, en la ' +
+      'carpeta <b>' + RESPALDO_CARPETA + '</b>. No tienes que hacer nada.',
+    'Último respaldo: ' + textoUltimoRespaldo() + '.',
     '',
+    '<b>Si además quieres la copia en el Mac</b>',
+    'Descarga a tu carpeta Descargas el archivo más reciente de esa carpeta, y corre:',
+    '<code>python3 herramientas/respaldar.py</code>',
     'Eso deja los datos en <code>datos/finanzas.db</code> (base SQLite, para',
     'análisis) y en <code>datos/movimientos.csv</code> (se abre en Excel).',
     'La copia local nunca borra nada, aunque la planilla se pierda.',

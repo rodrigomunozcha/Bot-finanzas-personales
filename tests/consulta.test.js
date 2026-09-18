@@ -178,27 +178,46 @@ test('avisa de los gastos que quedaron sin categoría', () => {
   assert.match(e.ultimoTexto(), /\/pendientes/);
 });
 
-test('el recordatorio de respaldo aparece a los 7 días y dice qué hacer', () => {
+// El respaldo ya no es manual: muchos días sin respaldo significa que el
+// automático está fallando, y el aviso tiene que decir eso, no pedir pasos.
+test('si el respaldo automático no corre, el latido avisa la causa y cómo reintentar', () => {
   const e = crearEntorno();
-  e.propiedades.INSTALADO_EN = String(Date.now() - 8 * 86400000);
+  e.propiedades.INSTALADO_EN = String(Date.now() - 10 * 86400000);
+  e.propiedades.RESPALDO_ERROR = 'La subida del respaldo a Drive respondió con el código 403.';
 
   e.contexto.latidoDiario();
 
-  assert.match(e.ultimoTexto(), /<b>8 días<\/b> que no respaldas/);
-  assert.match(e.ultimoTexto(), /respaldar\.py/);
-  assert.match(e.ultimoTexto(), /\/respaldado/);
+  assert.match(e.ultimoTexto(), /respaldo automático no funciona hace <b>10 días<\/b>/);
+  assert.match(e.ultimoTexto(), /código 403/, 'tiene que decir la causa');
+  assert.match(e.ultimoTexto(), /respaldarAhora/, 'y cómo reintentar');
+  assert.equal(/respaldar\.py|\/respaldado|Descargar/.test(e.ultimoTexto()), false,
+    'ya no le pide al usuario pasos manuales');
 });
 
-test('/respaldado calla el recordatorio', () => {
+// El activador corre cada domingo. Reclamar al séptimo día sería reclamar el
+// mismo día en que le toca, antes de que alcance a correr.
+test('una semana exacta sin respaldo todavía no es una falla', () => {
   const e = crearEntorno();
-  e.propiedades.INSTALADO_EN = String(Date.now() - 8 * 86400000);
+  e.propiedades.INSTALADO_EN = String(Date.now());
+  e.propiedades.ULTIMO_RESPALDO = String(Date.now() - 7 * 86400000);
+
+  e.contexto.latidoDiario();
+
+  assert.equal(nuevos(e).length, 0);
+});
+
+// Si /respaldado siguiera marcando la fecha, serviría para callar un respaldo
+// que de verdad está fallando.
+test('/respaldado ya no calla el aviso, solo explica que es automático', () => {
+  const e = crearEntorno();
+  e.propiedades.INSTALADO_EN = String(Date.now() - 10 * 86400000);
 
   e.contexto.manejarTexto('/respaldado');
-  assert.match(e.ultimoTexto(), /Anotado/);
+  assert.match(e.ultimoTexto(), /Ya no hace falta avisarme/);
+  assert.equal(e.propiedades.ULTIMO_RESPALDO, undefined);
 
-  const antes = nuevos(e).length;
   e.contexto.latidoDiario();
-  assert.equal(nuevos(e).length, antes, 'ya no debe reclamar');
+  assert.match(e.ultimoTexto(), /respaldo automático no funciona/);
 });
 
 test('avisa cuando la cuota diaria pasa del 90%', () => {

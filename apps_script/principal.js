@@ -165,8 +165,14 @@ function procesarPagoTarjeta(pago, correoId) {
 
 // --- Latido diario ---------------------------------------------------------
 
-/** Dias sin respaldar antes de empezar a insistir. */
-var DIAS_SIN_RESPALDO = 7;
+/**
+ * Dias sin respaldo automatico antes de avisar que algo falla.
+ *
+ * El activador corre cada domingo, asi que siete dias es lo normal y avisar
+ * al septimo seria reclamar el mismo dia en que le toca, antes de que alcance
+ * a correr. Nueve deja dos dias de margen.
+ */
+var DIAS_SIN_RESPALDO = 9;
 
 /**
  * Corre una vez al dia y habla SOLO si hay algo que arreglar.
@@ -221,15 +227,20 @@ function latidoDiario() {
       '  Anótalo así: <code>12000 efectivo</code>');
   }
 
+  // El respaldo ya no depende del usuario: lo hace un activador cada domingo.
+  // Si pasan mas dias de la cuenta, es porque el automatico esta fallando, y
+  // el aviso tiene que decir eso y su causa, no pedirle pasos manuales.
   var dias = diasSinRespaldo(propiedades);
   if (dias >= DIAS_SIN_RESPALDO) {
-    avisos.push('· Hace <b>' + dias + ' días</b> que no respaldas\n' +
-      '  Todo vive solo en Google. Si esa hoja se pierde, se pierde todo.\n' +
-      '  1. Abre tu hoja Finanzas\n' +
-      '  2. Archivo → Descargar → Microsoft Excel\n' +
-      '  3. En el Mac: <code>cd la carpeta del proyecto && ' +
-      'python3 herramientas/respaldar.py</code>\n' +
-      '  4. Vuelve y escríbeme <code>/respaldado</code>');
+    var errorRespaldo = propiedades.getProperty('RESPALDO_ERROR');
+    avisos.push('· El respaldo automático no funciona hace <b>' + dias + ' días</b>\n' +
+      '  Cada domingo guardo una copia de tu planilla en tu Google Drive, en la ' +
+      'carpeta <b>' + RESPALDO_CARPETA + '</b>, y no he podido hacerlo.\n' +
+      (errorRespaldo
+        ? '  Lo que falló: <code>' + tgEscapar(errorRespaldo) + '</code>\n'
+        : '') +
+      '  Para reintentar: en el editor de Apps Script elige ' +
+      '<code>respaldarAhora</code> y aprieta Ejecutar.');
   }
 
   if (!avisos.length) return;
@@ -522,11 +533,22 @@ function instalar() {
     ScriptApp.newTrigger('informeMensualAutomatico').timeBased()
       .onMonthDay(1).atHour(10).create();
   }
+  // Una hora antes del informe semanal.
+  if (existentes.indexOf('respaldoSemanalAutomatico') < 0) {
+    ScriptApp.newTrigger('respaldoSemanalAutomatico').timeBased()
+      .onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(18).create();
+  }
   if (!propiedades.getProperty('INSTALADO_EN')) {
     propiedades.setProperty('INSTALADO_EN', String(Date.now()));
   }
 
   tgRegistrarComandos();
+
+  // Un primer respaldo en el momento, sin esperar al domingo. Es la prueba en
+  // vivo del respaldo: si falta un permiso o Google responde distinto de lo que
+  // simula el doble de pruebas, se ve aqui y no una semana despues.
+  respaldoSemanalAutomatico();
+  var errorRespaldo = propiedades.getProperty('RESPALDO_ERROR');
 
   // Se reporta con reportar() y no con console.log por lo mismo que en
   // mostrarMiChatId: el registro de ejecucion cuesta encontrarlo y estos datos
@@ -544,6 +566,9 @@ function instalar() {
     'Etiquetas de Gmail: ' + ETIQUETA_PENDIENTE + ' y ' + ETIQUETA_PROCESADO,
     'Chat id guardado: ' +
       (propiedades.getProperty('TELEGRAM_CHAT_ID') ? 'sí' : 'FALTA (paso 7)'),
+    'Respaldo en Google Drive: ' + (errorRespaldo
+      ? 'FALLÓ. ' + errorRespaldo
+      : 'guardado en la carpeta ' + RESPALDO_CARPETA + '. Se repite cada domingo.'),
     '',
     'Activadores (leídos del proyecto, no una lista escrita a mano):',
   ].concat(ScriptApp.getProjectTriggers().map(function (t) {

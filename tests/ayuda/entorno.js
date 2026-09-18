@@ -14,7 +14,7 @@ const vm = require('node:vm');
 
 const ORDEN = [
   'datos.gen.js', 'parsers.js', 'tarjeta.js', 'clasificador.js',
-  'telegram.js', 'almacen.js', 'mensajes.js', 'entradas.js', 'conversacion.js', 'graficos.js', 'informes.js', 'principal.js', 'diagnostico.js',
+  'telegram.js', 'almacen.js', 'mensajes.js', 'entradas.js', 'conversacion.js', 'graficos.js', 'informes.js', 'respaldo.js', 'principal.js', 'diagnostico.js',
 ];
 
 /**
@@ -103,6 +103,69 @@ function crearEntorno(propiedades = {}) {
   const graficos = [];      // graficos que el codigo pidio dibujar
   const activadores = [];   // activadores programados, sin ejecutar nada
 
+  /**
+   * Doble de Google Drive y de la exportacion de Sheets.
+   *
+   * Cubre solo lo que usa respaldo.js: exportar la planilla como xlsx, buscar
+   * y crear una carpeta, y subir un archivo. Guarda cada pedido para que las
+   * pruebas lo revisen, y deja simular las dos fallas que importan: una
+   * exportacion que devuelve una pagina en vez de un Excel, y una subida
+   * rechazada.
+   */
+  const drive = {
+    token: 'token-oauth-falso-que-no-debe-aparecer',
+    carpetas: [],
+    archivos: [],
+    pedidos: [],
+    respuestaExportacion: { codigo: 200, bytes: [0x50, 0x4b, 0x03, 0x04, 1, 2, 3] },
+    fallarSubidaCon: null,
+    cuerpoDeError: 'error de mentira',
+  };
+  const respuestaGoogle = (codigo, cuerpo, bytes) => ({
+    getResponseCode: () => codigo,
+    getContentText: () => (typeof cuerpo === 'string' ? cuerpo : JSON.stringify(cuerpo)),
+    getBlob: () => ({ getBytes: () => (bytes || []).slice() }),
+  });
+  function googleFalso(url, opciones) {
+    const metodo = String(opciones.method || 'get').toLowerCase();
+    drive.pedidos.push({ url, metodo });
+
+    const autorizado = opciones.headers &&
+      opciones.headers.Authorization === 'Bearer ' + drive.token;
+    if (!autorizado) return respuestaGoogle(401, drive.cuerpoDeError);
+
+    if (url.includes('/export?format=xlsx')) {
+      const r = drive.respuestaExportacion;
+      return respuestaGoogle(r.codigo, '', r.bytes);
+    }
+    if (url.includes('/upload/drive/v3/files')) {
+      if (drive.fallarSubidaCon) return respuestaGoogle(drive.fallarSubidaCon, drive.cuerpoDeError);
+      const texto = Buffer.from(opciones.payload).toString('latin1');
+      const meta = JSON.parse(/\{[^\r\n]*\}/.exec(texto)[0]);
+      const archivo = {
+        id: 'archivo' + (drive.archivos.length + 1),
+        nombre: meta.name,
+        carpeta: meta.parents[0],
+      };
+      drive.archivos.push(archivo);
+      return respuestaGoogle(200, { id: archivo.id, name: archivo.nombre });
+    }
+    if (url.includes('/drive/v3/files') && metodo === 'get') {
+      const q = decodeURIComponent((/[?&]q=([^&]*)/.exec(url) || [])[1] || '');
+      const nombre = (/name = '([^']*)'/.exec(q) || [])[1];
+      return respuestaGoogle(200, {
+        files: drive.carpetas.filter((c) => c.name === nombre).map((c) => ({ id: c.id })),
+      });
+    }
+    if (url.includes('/drive/v3/files') && metodo === 'post') {
+      const meta = JSON.parse(opciones.payload);
+      const carpeta = { id: 'carpeta' + (drive.carpetas.length + 1), name: meta.name };
+      drive.carpetas.push(carpeta);
+      return respuestaGoogle(200, { id: carpeta.id });
+    }
+    return respuestaGoogle(404, 'ruta no simulada en el doble: ' + url);
+  }
+
   // Reloj controlable: las tandas rapidas duran casi un minuto y las pruebas no
   // pueden esperar eso de verdad.
   const relojFalso = {
@@ -119,6 +182,7 @@ function crearEntorno(propiedades = {}) {
     Date: new Proxy(Date, { get: (t, p) => (p === 'now' ? Reloj.now : t[p]) }),
     console: { log: () => {}, error: () => {} },
     JSON, Math, Number, String, Object, Array, RegExp, Error, isNaN, parseFloat,
+    encodeURIComponent, decodeURIComponent,
 
     SpreadsheetApp: {
       openById: () => ({ getSheetByName: (n) => hojas[n] }),
@@ -186,6 +250,9 @@ function crearEntorno(propiedades = {}) {
       getUuid: () => 'uuid-falso',
       // Sin espera real: las pruebas no pueden tardar lo que tarda el bot.
       sleep: (ms) => { relojFalso.avanzar(ms); },
+      // Apps Script devuelve los bytes como un arreglo de numeros, igual que
+      // este doble, y respaldo.js los concatena para armar la subida a Drive.
+      newBlob: (texto) => ({ getBytes: () => Array.from(Buffer.from(String(texto), 'utf8')) }),
     },
     /**
      * Activadores programados. Se guardan en una lista y nada corre de verdad.
@@ -217,9 +284,15 @@ function crearEntorno(propiedades = {}) {
         return constructor;
       },
       WeekDay: { SUNDAY: 'SUNDAY' },
+      getOAuthToken: () => drive.token,
     },
     UrlFetchApp: {
-      fetch(url, opciones) {
+      fetch(url, opciones = {}) {
+        // Lo que va a Google lo atiende el doble de Drive. Todo lo demas es
+        // Telegram, que era lo unico que este doble conocia antes del respaldo.
+        if (/^https:\/\/(docs\.google\.com|www\.googleapis\.com)\//.test(url)) {
+          return googleFalso(url, opciones);
+        }
         const metodo = url.split('/').pop();
         const cuerpo = typeof opciones.payload === 'string'
           ? JSON.parse(opciones.payload) : opciones.payload;
@@ -254,6 +327,8 @@ function crearEntorno(propiedades = {}) {
     propiedades: almacenPropiedades,
     /** Graficos que el codigo mando a dibujar, con sus datos. */
     graficos,
+    /** El doble de Drive: carpetas, archivos subidos, pedidos, y fallas a simular. */
+    drive,
     /** Imagenes enviadas a Telegram, con su pie de foto. */
     fotos: () => enviados.filter((x) => x.metodo === 'sendPhoto'),
     /** Deja avisos listos para que revisarTelegram los recoja. */

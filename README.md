@@ -126,26 +126,35 @@ Python. Ninguna necesita instalar dependencias.
 
 ## Respaldar
 
-Todo vive en una hoja de Google. Si esa hoja se pierde, se pierde todo, así que
-conviene bajarla cada tanto:
+**No hay que hacer nada.** Cada domingo a las 18:00, un activador exporta la
+planilla como Excel a la carpeta **Finanzas - Respaldos** de tu Google Drive. El
+bot solo te escribe si eso falla, y te dice la causa y cómo reintentar.
 
-1. Abre tu hoja **Finanzas** en Google Sheets
-2. **Archivo → Descargar → Microsoft Excel (.xlsx)**
-3. En el Mac:
+Para respaldar en el momento, sin esperar al domingo: en el editor de Apps
+Script elige `respaldarAhora` y aprieta Ejecutar.
+
+Tres detalles de cómo está hecho:
+
+- **Solo toca sus propios archivos.** Usa el permiso `drive.file`, que alcanza
+  únicamente a lo que crea este script, no al resto de tu Drive.
+- **Comprueba que lo guardado sea de verdad un Excel.** Si a Google le falta un
+  permiso, a veces responde una página de inicio de sesión en vez de un error, y
+  sin esa comprobación se guardaría la página con nombre de respaldo.
+- **Nunca borra un respaldo viejo.** Cada uno pesa pocos KB. El borrado lo haces
+  tú, si quieres.
+
+### Copia en el Mac
+
+Opcional, para tener una copia fuera de Google y analizar en SQLite. Descarga el
+Excel más reciente de esa carpeta a tu carpeta Descargas y corre:
 
 ```bash
-cd la carpeta del proyecto && python3 herramientas/respaldar.py
+python3 herramientas/respaldar.py
 ```
 
-4. Escríbele `/respaldado` al bot para que deje de recordártelo
-
-El importador toma el Excel más reciente de tu carpeta de Descargas, lo mete en
-`datos/finanzas.db` y deja un CSV listo para abrir en Excel. **Nunca borra
-nada**: si una fila desaparece de la hoja, en la base local sigue estando. Esa
-es toda la gracia.
-
-No queda ningún proceso corriendo en el Mac. El comando tarda un segundo y
-termina. El bot se encarga de recordarte cuando pasa una semana.
+El importador lo mete en `datos/finanzas.db` y deja un CSV listo para abrir en
+Excel. **Nunca borra nada**: si una fila desaparece de la hoja, en la base local
+sigue estando.
 
 ## Estado
 
@@ -159,7 +168,9 @@ termina. El bot se encarga de recordarte cuando pasa una semana.
 - [x] Aprendizaje por comercio, con reinicio al corregir
 - [x] Instalación en la cuenta de Google (ver [INSTALACION.md](INSTALACION.md))
 - [x] Freno de emergencia contra mensajes en bucle
+- [x] Respaldo automático semanal en Google Drive, sin intervención
 - [x] Respaldo local a SQLite, con CSV para Excel
+- [ ] Copia automática en el Mac desde la carpeta de Drive
 - [x] Latido diario: avisa solo cuando hay algo que arreglar
 - [x] Informes de semana y mes, con detalle gasto por gasto
 - [x] Entrada manual: gastos, efectivo, giros e ingresos
