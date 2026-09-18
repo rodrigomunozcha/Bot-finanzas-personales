@@ -281,7 +281,7 @@ def main():
     if sin_categoria:
         print(f"  ojo: {sin_categoria} sin categoría (revísalos con /pendientes)")
     print(f"\nCSV para Excel: {os.path.relpath(CSV_SALIDA, RAIZ)}")
-    print("\nAvísale al bot escribiéndole:  /respaldado")
+
     return 0
 
 
