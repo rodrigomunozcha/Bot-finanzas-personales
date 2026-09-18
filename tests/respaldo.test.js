@@ -155,3 +155,74 @@ test('si ese código no tiene forma de código, no sale', () => {
   assert.equal(e.propiedades.RESPALDO_ERROR.includes('alguien@example.com'), false);
   assert.match(e.propiedades.RESPALDO_ERROR, /código 403\./);
 });
+
+// --- Aseo de la carpeta ----------------------------------------------------
+//
+// Mover no libera espacio en Drive: un archivo ocupa lo mismo esté donde esté.
+// Lo que hace es que borrar deje de ser mirar 52 archivos y decidir uno por
+// uno. Todo lo que está en Antiguos tiene más de seis meses y se puede borrar
+// entero. El borrado lo hace el usuario, nunca el sistema.
+
+const MES = 31 * 86400000;
+
+test('los respaldos de más de seis meses se van a Antiguos', () => {
+  const e = crearEntorno();
+  e.contexto.exportarRespaldo();
+  e.drive.archivos[0].creadoEn = Date.now() - 7 * MES;
+
+  const r = e.contexto.exportarRespaldo();
+
+  const antiguos = e.drive.carpetas.filter((c) => c.name === 'Antiguos')[0];
+  assert.ok(antiguos, 'se creó la subcarpeta');
+  assert.equal(antiguos.padre, e.drive.carpetas[0].id, 'dentro de la de respaldos');
+  assert.equal(e.drive.archivos[0].carpeta, antiguos.id, 'el viejo se movió');
+  assert.equal(e.drive.archivos[1].carpeta, e.drive.carpetas[0].id, 'el nuevo se queda');
+  assert.equal(r.archivados, 1);
+});
+
+test('nunca se borra un respaldo, solo cambia de carpeta', () => {
+  const e = crearEntorno();
+  e.contexto.exportarRespaldo();
+  const id = e.drive.archivos[0].id;
+  const nombre = e.drive.archivos[0].nombre;
+  e.drive.archivos[0].creadoEn = Date.now() - 7 * MES;
+
+  e.contexto.exportarRespaldo();
+
+  assert.equal(e.drive.archivos.length, 2, 'siguen existiendo los dos');
+  assert.equal(e.drive.archivos[0].id, id, 'el mismo archivo');
+  assert.equal(e.drive.archivos[0].nombre, nombre);
+  assert.equal(e.drive.pedidos.some((p) => p.metodo === 'delete'), false,
+    'el sistema no borra archivos del usuario');
+});
+
+test('un respaldo de cinco meses todavía no se archiva', () => {
+  const e = crearEntorno();
+  e.contexto.exportarRespaldo();
+  e.drive.archivos[0].creadoEn = Date.now() - 5 * MES;
+
+  const r = e.contexto.exportarRespaldo();
+
+  assert.equal(r.archivados, 0);
+  assert.equal(e.drive.carpetas.filter((c) => c.name === 'Antiguos').length, 0,
+    'y no se crea una carpeta vacía');
+});
+
+// El aseo es aseo. Si falla, el respaldo de hoy ya está guardado y decir que
+// falló sería mentira.
+test('si el aseo falla, el respaldo igual cuenta como guardado', () => {
+  const e = crearEntorno();
+  e.contexto.exportarRespaldo();
+  e.drive.archivos[0].creadoEn = Date.now() - 7 * MES;
+  e.contexto.UrlFetchApp.fetch = ((original) => (url, opciones) => (
+    String(opciones && opciones.method).toLowerCase() === 'patch'
+      ? { getResponseCode: () => 500, getContentText: () => '', getBlob: () => ({ getBytes: () => [] }) }
+      : original(url, opciones)
+  ))(e.contexto.UrlFetchApp.fetch);
+
+  const r = e.contexto.exportarRespaldo();
+
+  assert.equal(e.drive.archivos.length, 2, 'el respaldo nuevo sí se subió');
+  assert.equal(r.archivados, 0);
+  assert.equal(e.propiedades.RESPALDO_ERROR, undefined, 'y no se anota como falla');
+});

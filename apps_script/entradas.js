@@ -207,6 +207,9 @@ function mostrarDatos() {
     'Cada domingo guardo automáticamente una copia en tu Google Drive, en la ' +
       'carpeta <b>' + RESPALDO_CARPETA + '</b>. No tienes que hacer nada.',
     'Último respaldo: ' + textoUltimoRespaldo() + '.',
+    'Los que cumplen seis meses los muevo a la subcarpeta <b>' +
+      RESPALDO_CARPETA_ANTIGUOS + '</b>, sin borrar ninguno. Si algún día ' +
+      'quieres hacer espacio en tu Drive, esa carpeta se puede borrar entera.',
     '',
     '<b>Si además quieres la copia en el Mac</b>',
     'Es opcional, y sirve para analizar los datos en SQLite. Un solo comando:',
@@ -230,6 +233,17 @@ function mostrarDatos() {
  * Tambien es la forma de reintentar cuando el latido avisa que fallo, sin tener
  * que abrir el editor de Apps Script desde un computador.
  */
+function textoArchivados(cuantos) {
+  if (!cuantos) return '';
+  // Se dice cuando pasa y no siempre, porque pasa una vez cada varios meses y
+  // repetirlo en cada respaldo lo convertiria en una linea que no se lee.
+  return 'De paso moví <b>' + cuantos + '</b> ' +
+    (cuantos === 1 ? 'respaldo que ya cumplió' : 'respaldos que ya cumplieron') +
+    ' seis meses a la subcarpeta <b>' + RESPALDO_CARPETA_ANTIGUOS + '</b>.\n' +
+    '<i>No borré nada. Ahí están todos juntos por si algún día quieres ' +
+    'hacer espacio borrándolos tú.</i>\n\n';
+}
+
 function respaldarPorTelegram() {
   var propiedades = PropertiesService.getScriptProperties();
   try {
@@ -237,6 +251,7 @@ function respaldarPorTelegram() {
     tgEnviar('💾 <b>Copia guardada.</b>\n\n' +
       'Está en tu Google Drive, en la carpeta <b>' + RESPALDO_CARPETA + '</b>, ' +
       'con el nombre <b>' + tgEscapar(hecho.nombre) + '</b>.\n\n' +
+      textoArchivados(hecho.archivados) +
       '<i>Igual sigo guardando una sola cada domingo. Esto fue extra.</i>');
   } catch (error) {
     // Se anota igual que una falla del automatico, para que el latido la cuente

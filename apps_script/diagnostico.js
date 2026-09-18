@@ -455,6 +455,9 @@ function respaldarAhora() {
     'Carpeta: ' + RESPALDO_CARPETA,
     'Archivo: ' + resultado.nombre,
     '',
+    'Respaldos movidos a ' + RESPALDO_CARPETA_ANTIGUOS + ' por cumplir seis ' +
+      'meses: ' + resultado.archivados + ' (ninguno se borra)',
+    '',
     'Se repite solo cada domingo. No tienes que hacer nada más.',
   ]);
 }

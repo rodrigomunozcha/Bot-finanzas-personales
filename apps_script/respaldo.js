@@ -39,6 +39,30 @@
  */
 
 var RESPALDO_CARPETA = 'Finanzas - Respaldos';
+
+/**
+ * Subcarpeta donde se juntan los respaldos que ya cumplieron seis meses.
+ *
+ * Mover no libera ni un byte: en Drive un archivo ocupa lo mismo este donde
+ * este. Lo que hace es convertir el borrado en una decision de un solo paso.
+ * Sin esto, borrar algo obliga a mirar 52 archivos y decidir uno por uno cual
+ * sobra, que es justo el tipo de tarea que nadie hace nunca. Con esto, todo lo
+ * que hay en Antiguos tiene mas de seis meses y se puede borrar entero.
+ *
+ * El borrado no lo hace el sistema. Estos son archivos del usuario y los borra
+ * el usuario, cuando quiera y a mano.
+ */
+var RESPALDO_CARPETA_ANTIGUOS = 'Antiguos';
+
+/**
+ * Meses que un respaldo se queda a la vista antes de irse a Antiguos.
+ *
+ * Seis porque un respaldo protege de dos cosas. De "perdi la planilla entera",
+ * y para eso basta el ultimo. Y de "me equivoque hace tiempo y recien me doy
+ * cuenta", que es la que necesita historia. Medio año cubre de sobra el segundo
+ * caso sin dejar la carpeta llena.
+ */
+var RESPALDO_MESES_PARA_ARCHIVAR = 6;
 var RESPALDO_TIPO_XLSX =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 var RESPALDO_TIPO_CARPETA = 'application/vnd.google-apps.folder';
@@ -63,7 +87,7 @@ function exportarRespaldo() {
   var token = ScriptApp.getOAuthToken();
 
   var archivo = _respaldoDescargarXlsx(hojaId, token);
-  var carpetaId = _respaldoCarpeta(token);
+  var carpetaId = _respaldoCarpeta(token, RESPALDO_CARPETA, null);
   // "Finanzas" en el nombre no es decorativo: respaldar.py solo toma los Excel
   // cuyo nombre lo contiene.
   var nombre = 'Finanzas respaldo ' + diaDe(new Date()) + '.xlsx';
@@ -74,7 +98,61 @@ function exportarRespaldo() {
   // Y la marca de "esta falla ya la avise", o un error identico mas adelante se
   // daria por avisado y el latido se lo callaria.
   propiedades.deleteProperty('RESPALDO_ERROR_AVISADO');
-  return { id: subido.id, nombre: nombre };
+
+  // Ordenar la carpeta es aseo, no respaldo. Si falla, el respaldo de hoy ya
+  // esta guardado y seria mentira reportarlo como una falla. Se anota en el
+  // registro y se sigue.
+  var archivados = 0;
+  try {
+    archivados = _respaldoArchivarViejos(carpetaId, token);
+  } catch (error) {
+    console.error('respaldo: no pude ordenar los viejos: ' + error);
+  }
+
+  return { id: subido.id, nombre: nombre, archivados: archivados };
+}
+
+/**
+ * Manda a Antiguos los respaldos que ya cumplieron seis meses. Devuelve cuantos.
+ *
+ * Se le pide a Google que filtre por fecha en vez de traer la lista entera y
+ * decidir aca, porque asi el caso normal, que es no tener nada que mover, se
+ * resuelve en un solo pedido que vuelve vacio.
+ *
+ * La carpeta Antiguos se crea recien cuando hay algo que meterle. Una carpeta
+ * vacia llamada Antiguos en el Drive de alguien es una pregunta sin respuesta.
+ */
+function _respaldoArchivarViejos(carpetaId, token) {
+  var corte = new Date();
+  corte.setMonth(corte.getMonth() - RESPALDO_MESES_PARA_ARCHIVAR);
+
+  var consulta = "'" + carpetaId + "' in parents and trashed = false and " +
+    "mimeType = '" + RESPALDO_TIPO_XLSX + "' and createdTime < '" +
+    corte.toISOString() + "'";
+
+  // El tope de 100 no es un limite real: despues de la primera vez, cada
+  // domingo vence uno solo. Es el techo de la primera pasada, y si algun dia
+  // quedaran mas, el domingo siguiente se lleva los que falten.
+  var lista = JSON.parse(_respaldoPedir(
+    RESPALDO_DRIVE_API + '?q=' + encodeURIComponent(consulta) +
+      '&fields=files(id)&pageSize=100',
+    { headers: { Authorization: 'Bearer ' + token } },
+    'La revisión de los respaldos viejos').getContentText());
+
+  var viejos = lista.files || [];
+  if (!viejos.length) return 0;
+
+  var destino = _respaldoCarpeta(token, RESPALDO_CARPETA_ANTIGUOS, carpetaId);
+  viejos.forEach(function (archivo) {
+    // Cambiar de carpeta en Drive es cambiarle el padre. No hay copia ni
+    // borrado de por medio: es el mismo archivo, con el mismo id y la misma
+    // fecha, colgando de otra parte.
+    _respaldoPedir(RESPALDO_DRIVE_API + '/' + archivo.id +
+      '?addParents=' + destino + '&removeParents=' + carpetaId + '&fields=id',
+      { method: 'patch', headers: { Authorization: 'Bearer ' + token } },
+      'El traslado de un respaldo viejo a ' + RESPALDO_CARPETA_ANTIGUOS);
+  });
+  return viejos.length;
 }
 
 /** Lo dispara el activador cada domingo. Una falla se anota, no revienta. */
@@ -164,9 +242,17 @@ function _respaldoDescargarXlsx(hojaId, token) {
   return archivo;
 }
 
-function _respaldoCarpeta(token) {
-  var consulta = "name = '" + RESPALDO_CARPETA + "' and mimeType = '" +
-    RESPALDO_TIPO_CARPETA + "' and trashed = false";
+/**
+ * Busca una carpeta por nombre y la crea si no existe. Devuelve su id.
+ *
+ * Con el permiso drive.file la busqueda solo ve carpetas creadas por este
+ * script, asi que si el usuario ya tiene una con el mismo nombre no se escribe
+ * en la suya.
+ */
+function _respaldoCarpeta(token, nombre, padreId) {
+  var consulta = "name = '" + nombre + "' and mimeType = '" +
+    RESPALDO_TIPO_CARPETA + "' and trashed = false" +
+    (padreId ? " and '" + padreId + "' in parents" : '');
 
   var busqueda = JSON.parse(_respaldoPedir(
     RESPALDO_DRIVE_API + '?q=' + encodeURIComponent(consulta) + '&fields=files(id)',
@@ -174,10 +260,13 @@ function _respaldoCarpeta(token) {
     'La búsqueda de la carpeta en Drive').getContentText());
   if (busqueda.files && busqueda.files.length) return busqueda.files[0].id;
 
+  var cuerpo = { name: nombre, mimeType: RESPALDO_TIPO_CARPETA };
+  if (padreId) cuerpo.parents = [padreId];
+
   var creada = JSON.parse(_respaldoPedir(RESPALDO_DRIVE_API + '?fields=id', {
     method: 'post',
     contentType: 'application/json',
-    payload: JSON.stringify({ name: RESPALDO_CARPETA, mimeType: RESPALDO_TIPO_CARPETA }),
+    payload: JSON.stringify(cuerpo),
     headers: { Authorization: 'Bearer ' + token },
   }, 'La creación de la carpeta en Drive').getContentText());
   return creada.id;

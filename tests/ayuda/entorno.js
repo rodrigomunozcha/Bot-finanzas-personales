@@ -146,6 +146,9 @@ function crearEntorno(propiedades = {}) {
         id: 'archivo' + (drive.archivos.length + 1),
         nombre: meta.name,
         carpeta: meta.parents[0],
+        // Drive le pone la fecha de creación. Una prueba que quiera un respaldo
+        // viejo la retrocede a mano.
+        creadoEn: Date.now(),
       };
       drive.archivos.push(archivo);
       return respuestaGoogle(200, { id: archivo.id, name: archivo.nombre });
@@ -153,15 +156,44 @@ function crearEntorno(propiedades = {}) {
     if (url.includes('/drive/v3/files') && metodo === 'get') {
       const q = decodeURIComponent((/[?&]q=([^&]*)/.exec(url) || [])[1] || '');
       const nombre = (/name = '([^']*)'/.exec(q) || [])[1];
+      const padre = (/'([^']*)' in parents/.exec(q) || [])[1];
+
+      // Búsqueda de carpeta por nombre, opcionalmente dentro de otra.
+      if (nombre) {
+        return respuestaGoogle(200, {
+          files: drive.carpetas
+            .filter((c) => c.name === nombre && (!padre || c.padre === padre))
+            .map((c) => ({ id: c.id })),
+        });
+      }
+
+      // Búsqueda de respaldos viejos dentro de una carpeta.
+      const antesDe = (/createdTime < '([^']*)'/.exec(q) || [])[1];
+      const corte = antesDe ? Date.parse(antesDe) : Infinity;
       return respuestaGoogle(200, {
-        files: drive.carpetas.filter((c) => c.name === nombre).map((c) => ({ id: c.id })),
+        files: drive.archivos
+          .filter((a) => a.carpeta === padre && a.creadoEn < corte)
+          .map((a) => ({ id: a.id })),
       });
     }
     if (url.includes('/drive/v3/files') && metodo === 'post') {
       const meta = JSON.parse(opciones.payload);
-      const carpeta = { id: 'carpeta' + (drive.carpetas.length + 1), name: meta.name };
+      const carpeta = {
+        id: 'carpeta' + (drive.carpetas.length + 1),
+        name: meta.name,
+        padre: meta.parents ? meta.parents[0] : null,
+      };
       drive.carpetas.push(carpeta);
       return respuestaGoogle(200, { id: carpeta.id });
+    }
+    // Mover un archivo de carpeta: en Drive es cambiarle el padre.
+    if (url.includes('/drive/v3/files/') && metodo === 'patch') {
+      const id = (/\/files\/([^?]+)/.exec(url) || [])[1];
+      const destino = (/[?&]addParents=([^&]*)/.exec(url) || [])[1];
+      const archivo = drive.archivos.filter((a) => a.id === id)[0];
+      if (!archivo) return respuestaGoogle(404, 'no existe ese archivo');
+      archivo.carpeta = destino;
+      return respuestaGoogle(200, { id: id });
     }
     return respuestaGoogle(404, 'ruta no simulada en el doble: ' + url);
   }

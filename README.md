@@ -140,8 +140,11 @@ Tres detalles de cómo está hecho:
 - **Comprueba que lo guardado sea de verdad un Excel.** Si a Google le falta un
   permiso, a veces responde una página de inicio de sesión en vez de un error, y
   sin esa comprobación se guardaría la página con nombre de respaldo.
-- **Nunca borra un respaldo viejo.** Cada uno pesa pocos KB. El borrado lo haces
-  tú, si quieres.
+- **Nunca borra un respaldo viejo.** Los que cumplen seis meses se mueven a la
+  subcarpeta **Antiguos**. Mover no libera espacio, porque en Drive un archivo
+  ocupa lo mismo esté donde esté. Lo que hace es que borrar deje de ser mirar
+  cincuenta archivos y decidir uno por uno: todo lo que está en Antiguos tiene
+  más de seis meses y se puede borrar entero. El borrado lo haces tú.
 
 ### Copia en el Mac
 
