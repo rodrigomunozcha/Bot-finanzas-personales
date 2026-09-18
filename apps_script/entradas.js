@@ -209,12 +209,46 @@ function mostrarDatos() {
     'Último respaldo: ' + textoUltimoRespaldo() + '.',
     '',
     '<b>Si además quieres la copia en el Mac</b>',
-    'Descarga a tu carpeta Descargas el archivo más reciente de esa carpeta, y corre:',
-    '<code>python3 herramientas/respaldar.py</code>',
+    'Es opcional, y sirve para analizar los datos en SQLite. Un solo comando:',
+    '<code>bash herramientas/copia_local.sh</code>',
     'Eso deja los datos en <code>datos/finanzas.db</code> (base SQLite, para',
     'análisis) y en <code>datos/movimientos.csv</code> (se abre en Excel).',
     'La copia local nunca borra nada, aunque la planilla se pierda.',
   ].join('\n'));
+}
+
+
+/**
+ * /respaldar: guarda la copia en el momento, sin esperar al domingo.
+ *
+ * El respaldo ya es automatico, asi que este comando no existe para que el
+ * usuario mantenga el sistema andando. Existe para el rato antes de algo que da
+ * susto: editar la planilla a mano, probar algo nuevo, salir de viaje. Ahi
+ * poder apretar un boton y ver confirmado que hay una copia de hoy vale mas que
+ * saber que el domingo pasado hubo una.
+ *
+ * Tambien es la forma de reintentar cuando el latido avisa que fallo, sin tener
+ * que abrir el editor de Apps Script desde un computador.
+ */
+function respaldarPorTelegram() {
+  var propiedades = PropertiesService.getScriptProperties();
+  try {
+    var hecho = exportarRespaldo();
+    tgEnviar('💾 <b>Copia guardada.</b>\n\n' +
+      'Está en tu Google Drive, en la carpeta <b>' + RESPALDO_CARPETA + '</b>, ' +
+      'con el nombre <b>' + tgEscapar(hecho.nombre) + '</b>.\n\n' +
+      '<i>Igual sigo guardando una sola cada domingo. Esto fue extra.</i>');
+  } catch (error) {
+    // Se anota igual que una falla del automatico, para que el latido la cuente
+    // si el usuario cierra el chat y se olvida.
+    var falla = String(error && error.message ? error.message : error);
+    propiedades.setProperty('RESPALDO_ERROR', falla.substring(0, 300));
+    tgEnviar('⚠️ <b>No pude guardar la copia.</b>\n\n' +
+      'Lo que falló: <code>' + tgEscapar(falla) + '</code>\n\n' +
+      'Tus datos siguen en la planilla, no se perdió nada. Vuelve a apretar ' +
+      '/respaldar más tarde. Si falla otra vez, es algo que hay que arreglar en ' +
+      'el código.');
+  }
 }
 
 

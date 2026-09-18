@@ -539,6 +539,7 @@ function manejarTexto(texto) {
   if (cmd && cmd.nombre === 'efectivo') return informeEfectivo();
   if (cmd && cmd.nombre === 'ultimos') return mostrarUltimos();
   if (cmd && cmd.nombre === 'datos') return mostrarDatos();
+  if (cmd && cmd.nombre === 'respaldar') return respaldarPorTelegram();
 
   // /respaldado servia cuando el respaldo era manual: el usuario avisaba que ya
   // lo habia hecho. Ahora es automatico, y si el comando siguiera marcando la

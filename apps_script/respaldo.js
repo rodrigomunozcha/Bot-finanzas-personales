@@ -71,6 +71,9 @@ function exportarRespaldo() {
 
   propiedades.setProperty('ULTIMO_RESPALDO', String(Date.now()));
   propiedades.deleteProperty('RESPALDO_ERROR');
+  // Y la marca de "esta falla ya la avise", o un error identico mas adelante se
+  // daria por avisado y el latido se lo callaria.
+  propiedades.deleteProperty('RESPALDO_ERROR_AVISADO');
   return { id: subido.id, nombre: nombre };
 }
 

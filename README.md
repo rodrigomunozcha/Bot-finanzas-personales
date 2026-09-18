@@ -145,16 +145,27 @@ Tres detalles de cómo está hecho:
 
 ### Copia en el Mac
 
-Opcional, para tener una copia fuera de Google y analizar en SQLite. Descarga el
-Excel más reciente de esa carpeta a tu carpeta Descargas y corre:
+Opcional. No es seguridad, que ya la da el respaldo en Drive, sino comodidad:
+deja los datos en SQLite para analizarlos. Un comando:
 
 ```bash
-python3 herramientas/respaldar.py
+bash herramientas/copia_local.sh
 ```
+
+Le pide el Excel a Google por el navegador, donde la sesión ya está iniciada,
+espera a que caiga en Descargas y lo importa. La primera vez pregunta cuál es la
+planilla y lo guarda en `config.local.json`, que no se versiona.
 
 El importador lo mete en `datos/finanzas.db` y deja un CSV listo para abrir en
 Excel. **Nunca borra nada**: si una fila desaparece de la hoja, en la base local
 sigue estando.
+
+**Por qué no lee la carpeta de Google Drive del Mac.** Drive para escritorio la
+deja en `~/Library/CloudStorage`, que macOS protege. Leerla desde una terminal
+exige "Acceso total al disco", que es permiso sobre todo el disco, para siempre
+y para cualquier cosa que se corra desde ahí. macOS no ofrece una versión
+acotada a esa sola carpeta. Un permiso de ese tamaño para leer un archivo de
+40 KB no sale a cuenta, así que el archivo se pide por el navegador.
 
 ## Estado
 
@@ -170,12 +181,13 @@ sigue estando.
 - [x] Freno de emergencia contra mensajes en bucle
 - [x] Respaldo automático semanal en Google Drive, sin intervención
 - [x] Respaldo local a SQLite, con CSV para Excel
-- [ ] Copia automática en el Mac desde la carpeta de Drive
+- [x] Copia en el Mac en un comando, sin permisos especiales de macOS
 - [x] Latido diario: avisa solo cuando hay algo que arreglar
 - [x] Informes de semana y mes, con detalle gasto por gasto
 - [x] Entrada manual: gastos, efectivo, giros e ingresos
 - [x] Saldo de la cuenta corriente
 - [x] Añadir categoría o subcategoría desde el bot, sin tocar el código
+- [x] Respaldar en el momento desde el menú de Telegram, con `/respaldar`
 - [ ] Presupuesto por categoría, para que las cifras tengan veredicto
 - [ ] Formatos de correo que faltan: giro por cajero, anulación
 - [ ] Poda de subcategorías que no aplican en Chile

@@ -180,18 +180,101 @@ test('avisa de los gastos que quedaron sin categoría', () => {
 
 // El respaldo ya no es manual: muchos días sin respaldo significa que el
 // automático está fallando, y el aviso tiene que decir eso, no pedir pasos.
-test('si el respaldo automático no corre, el latido avisa la causa y cómo reintentar', () => {
+test('si el respaldo falla, el latido avisa la causa y cómo reintentar', () => {
   const e = crearEntorno();
   e.propiedades.INSTALADO_EN = String(Date.now() - 10 * 86400000);
   e.propiedades.RESPALDO_ERROR = 'La subida del respaldo a Drive respondió con el código 403.';
 
   e.contexto.latidoDiario();
 
-  assert.match(e.ultimoTexto(), /respaldo automático no funciona hace <b>10 días<\/b>/);
+  assert.match(e.ultimoTexto(), /No pude guardar la copia/);
   assert.match(e.ultimoTexto(), /código 403/, 'tiene que decir la causa');
-  assert.match(e.ultimoTexto(), /respaldarAhora/, 'y cómo reintentar');
-  assert.equal(/respaldar\.py|\/respaldado|Descargar/.test(e.ultimoTexto()), false,
-    'ya no le pide al usuario pasos manuales');
+  assert.match(e.ultimoTexto(), /\/respaldar/, 'y cómo reintentar desde el chat');
+  assert.equal(/respaldar\.py|\/respaldado|Descargar|Apps Script/.test(e.ultimoTexto()), false,
+    'ya no le pide al usuario pasos manuales ni abrir el editor');
+});
+
+// Lo que el usuario pidió: nunca un recordatorio de respaldar, solo un aviso si
+// algo salió mal. Nueve días de silencio por un permiso que se arregla en un
+// minuto sería un silencio caro.
+test('un respaldo que falló se avisa al día siguiente, sin esperar nueve días', () => {
+  const e = crearEntorno();
+  e.propiedades.INSTALADO_EN = String(Date.now());
+  e.propiedades.ULTIMO_RESPALDO = String(Date.now() - 86400000);
+  e.propiedades.RESPALDO_ERROR = 'La búsqueda de la carpeta en Drive respondió con el código 403.';
+
+  e.contexto.latidoDiario();
+
+  assert.match(e.ultimoTexto(), /No pude guardar la copia/);
+});
+
+// Un aviso diario del mismo problema se vuelve ruido en tres días y se deja de
+// leer, que es justo lo contrario de lo que sirve.
+test('la misma falla no se avisa dos veces', () => {
+  const e = crearEntorno();
+  e.propiedades.INSTALADO_EN = String(Date.now());
+  e.propiedades.ULTIMO_RESPALDO = String(Date.now() - 86400000);
+  e.propiedades.RESPALDO_ERROR = 'La subida del respaldo a Drive respondió con el código 403.';
+
+  e.contexto.latidoDiario();
+  const avisos = e.enviados.length;
+  e.contexto.latidoDiario();
+
+  assert.equal(e.enviados.length, avisos, 'el segundo día no dice nada');
+});
+
+// Si no se limpiara la marca, una falla idéntica más adelante se daría por
+// avisada y el latido se la callaría.
+test('un respaldo exitoso deja que la misma falla se vuelva a avisar', () => {
+  const e = crearEntorno();
+  e.propiedades.INSTALADO_EN = String(Date.now());
+  e.propiedades.ULTIMO_RESPALDO = String(Date.now() - 86400000);
+  const falla = 'La subida del respaldo a Drive respondió con el código 403.';
+  e.propiedades.RESPALDO_ERROR = falla;
+
+  e.contexto.latidoDiario();
+  e.contexto.exportarRespaldo();
+  e.propiedades.ULTIMO_RESPALDO = String(Date.now() - 86400000);
+  e.propiedades.RESPALDO_ERROR = falla;
+  const avisos = e.enviados.length;
+  e.contexto.latidoDiario();
+
+  assert.ok(e.enviados.length > avisos, 'la vuelve a avisar');
+});
+
+// El respaldo ya es automático. El bot no puede pedirle que respalde.
+test('cuando el respaldo anda bien, el latido no lo menciona', () => {
+  const e = crearEntorno();
+  e.propiedades.INSTALADO_EN = String(Date.now());
+  e.propiedades.ULTIMO_RESPALDO = String(Date.now() - 86400000);
+  e.propiedades.PRESUPUESTO_USADO = String(e.contexto.TOPE_DIARIO_SEGUNDOS * 0.95);
+
+  e.contexto.latidoDiario();
+
+  assert.match(e.ultimoTexto(), /Cuota diaria/, 'sí habla de lo que de verdad pasa');
+  assert.equal(/respald/i.test(e.ultimoTexto()), false);
+});
+
+test('/respaldar guarda una copia en el momento y lo confirma', () => {
+  const e = crearEntorno();
+
+  e.contexto.manejarTexto('/respaldar');
+
+  assert.equal(e.drive.archivos.length, 1);
+  assert.match(e.ultimoTexto(), /Copia guardada/);
+  assert.match(e.ultimoTexto(), /Finanzas - Respaldos/);
+});
+
+test('si /respaldar falla, lo dice y tranquiliza sobre los datos', () => {
+  const e = crearEntorno();
+  e.drive.fallarSubidaCon = 403;
+
+  assert.doesNotThrow(() => e.contexto.manejarTexto('/respaldar'));
+
+  assert.match(e.ultimoTexto(), /No pude guardar la copia/);
+  assert.match(e.ultimoTexto(), /código 403/);
+  assert.match(e.ultimoTexto(), /no se perdió nada/);
+  assert.match(e.propiedades.RESPALDO_ERROR, /código 403/, 'y queda anotado para el latido');
 });
 
 // El activador corre cada domingo. Reclamar al séptimo día sería reclamar el
@@ -217,7 +300,7 @@ test('/respaldado ya no calla el aviso, solo explica que es automático', () => 
   assert.equal(e.propiedades.ULTIMO_RESPALDO, undefined);
 
   e.contexto.latidoDiario();
-  assert.match(e.ultimoTexto(), /respaldo automático no funciona/);
+  assert.match(e.ultimoTexto(), /No pude guardar la copia/);
 });
 
 test('avisa cuando la cuota diaria pasa del 90%', () => {

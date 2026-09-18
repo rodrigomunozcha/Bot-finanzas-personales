@@ -288,7 +288,7 @@ test('/datos da el enlace a la planilla y cómo respaldarla', () => {
   e.contexto.manejarTexto('/datos');
 
   assert.match(e.ultimoTexto(), /docs\.google\.com\/spreadsheets/);
-  assert.match(e.ultimoTexto(), /respaldar\.py/);
+  assert.match(e.ultimoTexto(), /copia_local\.sh/);
   assert.match(e.ultimoTexto(), /finanzas\.db/);
 });
 

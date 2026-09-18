@@ -54,6 +54,7 @@ var COMANDOS = [
   { command: 'ultimos', description: '✏️ Ver y corregir mis últimos gastos' },
   { command: 'pendientes', description: '⚠️ Qué me falta clasificar' },
   { command: 'datos', description: '📁 Abrir mi planilla y ver el último respaldo' },
+  { command: 'respaldar', description: '💾 Guardar una copia ahora, sin esperar al domingo' },
   { command: 'ayuda', description: '❓ Cómo anotar un gasto y qué más puedo hacer' },
 ];
 

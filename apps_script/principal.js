@@ -227,20 +227,34 @@ function latidoDiario() {
       '  Anótalo así: <code>12000 efectivo</code>');
   }
 
-  // El respaldo ya no depende del usuario: lo hace un activador cada domingo.
-  // Si pasan mas dias de la cuenta, es porque el automatico esta fallando, y
-  // el aviso tiene que decir eso y su causa, no pedirle pasos manuales.
+  // El respaldo no depende del usuario: lo hace un activador cada domingo, y
+  // por eso aca nunca se le recuerda que respalde. Solo se habla cuando fallo.
+  //
+  // Falla de dos formas que se ven distinto. Si el activador corrio y Google
+  // dijo que no, queda la causa escrita y se avisa al dia siguiente, sin
+  // esperar: nueve dias sin copia por un permiso que se arregla en un minuto
+  // seria un silencio caro. Si el activador ni siquiera corrio no hay causa que
+  // mirar, y lo unico que delata ese silencio es que pasen mas dias de los que
+  // deberia.
+  //
+  // El error se avisa una vez y no todos los dias, con la misma marca que usan
+  // los correos no entendidos. Repetir el mismo aviso a diario lo vuelve ruido
+  // y se deja de leer, que es justo lo contrario de lo que sirve.
+  var errorRespaldo = propiedades.getProperty('RESPALDO_ERROR');
+  var yaAvisado = propiedades.getProperty('RESPALDO_ERROR_AVISADO');
   var dias = diasSinRespaldo(propiedades);
-  if (dias >= DIAS_SIN_RESPALDO) {
-    var errorRespaldo = propiedades.getProperty('RESPALDO_ERROR');
-    avisos.push('· El respaldo automático no funciona hace <b>' + dias + ' días</b>\n' +
-      '  Cada domingo guardo una copia de tu planilla en tu Google Drive, en la ' +
-      'carpeta <b>' + RESPALDO_CARPETA + '</b>, y no he podido hacerlo.\n' +
+  var mudo = dias >= DIAS_SIN_RESPALDO;
+  if (mudo || (errorRespaldo && errorRespaldo !== yaAvisado)) {
+    avisos.push('· <b>No pude guardar la copia de tu planilla</b>\n' +
+      '  Cada domingo guardo una en tu Google Drive, en la carpeta <b>' +
+      RESPALDO_CARPETA + '</b>.\n' +
       (errorRespaldo
         ? '  Lo que falló: <code>' + tgEscapar(errorRespaldo) + '</code>\n'
-        : '') +
-      '  Para reintentar: en el editor de Apps Script elige ' +
-      '<code>respaldarAhora</code> y aprieta Ejecutar.');
+        : '  Hace <b>' + dias + ' días</b> que no lo consigo, y ni siquiera sé ' +
+          'por qué: parece que dejó de intentarlo.\n') +
+      '  Tus datos siguen en la planilla, no se perdió nada.\n' +
+      '  Aprieta /respaldar para reintentar ahora.');
+    if (errorRespaldo) propiedades.setProperty('RESPALDO_ERROR_AVISADO', errorRespaldo);
   }
 
   if (!avisos.length) return;
@@ -443,7 +457,7 @@ function atenderAviso(update) {
  *
  * La version anterior guardaba cada id en la cache con una hora de vencimiento,
  * y eso creo un despertador. Telegram reintenta un aviso atascado
- * indefinidamente; durante una hora el filtro lo descartaba, la cache vencia, y
+ * indefinidamente. Durante una hora el filtro lo descartaba, la cache vencia, y
  * el siguiente reintento entraba como nuevo. Resultado: un mensaje repetido
  * cada 61 minutos, toda la noche. Una marca sin vencimiento no puede hacer eso.
  */

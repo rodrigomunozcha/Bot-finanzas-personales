@@ -75,6 +75,7 @@ function textoDeAyuda() {
     '/ultimos  ·  ver y corregir los últimos gastos',
     '/pendientes  ·  lo que falta clasificar',
     '/datos  ·  abrir la planilla y ver cuándo fue el último respaldo',
+    '/respaldar  ·  guardar una copia ahora, sin esperar al domingo',
     '',
     '<b>Menos usados</b>',
     '/olvidar COMERCIO  ·  que vuelva a preguntarte por ese comercio',
