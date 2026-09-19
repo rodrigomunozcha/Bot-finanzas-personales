@@ -19,7 +19,7 @@ const COMPRA_DEBITO = {
 const TRANSFERENCIA = {
   asunto: 'Aviso de transferencia de fondos',
   cuerpo: 'Comprobante de transferencia electrónica de fondos Estimado(a): Nombre Apellido ' +
-    'Te informamos que nuestro(a) cliente Jessica Veronica Perez ha efectuado una ' +
+    'Te informamos que nuestro(a) cliente Nombre Segundo Apellido ha efectuado una ' +
     'transferencia de fondos a tu cuenta con el siguiente detalle: Datos de cuenta ' +
     'Fecha Asunto 01/08/2026 Maleta y taxi Datos de destinatario Nombre y Apellido Rut ' +
     'Email Banco Cuenta destino Nombre Apellido 11111111-1 correo.falso@example.com ' +
@@ -98,14 +98,14 @@ test('de quien envía no queda ni el primer nombre, ni lo que escribió', () => 
   assert.equal(r.remitente, undefined);
   assert.equal(r.glosa, undefined);
   const serializado = JSON.stringify(r);
-  assert.equal(serializado.includes('Jessica'), false);
+  assert.equal(serializado.includes('Nombre'), false);
   assert.equal(serializado.includes('Maleta y taxi'), false);
 });
 
 test('transferencia: no se extrae ningun dato identificatorio', () => {
   const r = p.leerCorreo(TRANSFERENCIA.asunto, TRANSFERENCIA.cuerpo);
   const serializado = JSON.stringify(r);
-  for (const dato of ['11111111-1', 'correo.falso@example.com', '00-000-00000-00', 'Perez']) {
+  for (const dato of ['11111111-1', 'correo.falso@example.com', '00-000-00000-00', 'Apellido']) {
     assert.equal(serializado.includes(dato), false, `se filtro un dato sensible: ${dato}`);
   }
 });
@@ -134,7 +134,7 @@ const TRANSFERENCIA_ETIQUETADA = {
   asunto: 'Aviso de transferencia de fondos',
   cuerpo: `Comprobante de transferencia electrónica de fondos
 Estimado(a): Nombre Apellido
-Te informamos que nuestro(a) cliente Jessica Veronica Perez ha efectuado una transferencia de fondos a tu cuenta con el siguiente detalle:
+Te informamos que nuestro(a) cliente Nombre Segundo Apellido ha efectuado una transferencia de fondos a tu cuenta con el siguiente detalle:
 Datos de cuenta
 Fecha 	01/08/2026
 Asunto 	Maleta y taxi
@@ -170,7 +170,7 @@ test('de la tabla etiquetada tampoco se extrae ningún dato identificatorio', ()
   const r = p.leerCorreo(TRANSFERENCIA_ETIQUETADA.asunto, TRANSFERENCIA_ETIQUETADA.cuerpo);
   const serializado = JSON.stringify(r);
   for (const dato of ['12345678-9', 'alguien@example.com', '00-000-00000-00',
-    'TEFMBCO0000000000000000000000', 'Perez']) {
+    'TEFMBCO0000000000000000000000', 'Apellido']) {
     assert.equal(serializado.includes(dato), false, `se filtró: ${dato}`);
   }
 });
@@ -223,12 +223,12 @@ test('transferencia enviada: monto, mensaje y fecha', () => {
 // El mensaje es texto libre escrito para un tercero. No se lee, nunca.
 test('el mensaje de la transferencia no se lee jamás', () => {
   const conDireccion = TRANSFERENCIA_ENVIADA.cuerpo
-    .replace('Arriendo depto', 'Depto 000 Calle Inventada, Juan Perez, +56900000000');
+    .replace('Arriendo depto', 'Depto 000 Calle Inventada, Nombre Apellido, +56900000000');
   const r = p.leerCorreo(TRANSFERENCIA_ENVIADA.asunto, conDireccion);
 
   assert.equal(r.comercio, 'Transferencia enviada');
   const serializado = JSON.stringify(r);
-  for (const dato of ['Depto', 'Calle Inventada', 'Juan', 'Perez', '56900000000']) {
+  for (const dato of ['Depto', 'Calle Inventada', 'Nombre', 'Apellido', '56900000000']) {
     assert.equal(serializado.includes(dato), false, `se filtró del mensaje: ${dato}`);
   }
 });

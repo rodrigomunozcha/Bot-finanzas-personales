@@ -226,7 +226,7 @@ test('una transferencia sin hora se guarda igual como fecha', () => {
   e.contexto.procesarMensaje({
     getId: () => 't1',
     getSubject: () => 'Aviso de transferencia de fondos',
-    getPlainBody: () => 'nuestro(a) cliente Ana Perez ha efectuado una transferencia ' +
+    getPlainBody: () => 'nuestro(a) cliente Nombre Apellido ha efectuado una transferencia ' +
       'de fondos a tu cuenta con el siguiente detalle: Datos de cuenta ' +
       'Fecha Asunto 01/08/2026 Pago clase Datos de destinatario Monto $50.000',
   });

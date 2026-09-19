@@ -108,7 +108,7 @@ test('corregir un comercio ya aprendido lo devuelve a preguntar', () => {
 test('transferencia recibida: reembolso no cuenta como ingreso', () => {
   const e = crearEntorno();
   entra(e, 'Aviso de transferencia de fondos',
-    'Te informamos que nuestro(a) cliente Jessica Veronica Perez ha efectuado una ' +
+    'Te informamos que nuestro(a) cliente Nombre Segundo Apellido ha efectuado una ' +
     'transferencia de fondos a tu cuenta con el siguiente detalle: Datos de cuenta ' +
     'Fecha Asunto 01/08/2026 Maleta y taxi Datos de destinatario Nombre y Apellido Rut ' +
     'Email Banco Cuenta destino Nombre Apellido 11111111-1 correo@example.com ' +
@@ -118,7 +118,7 @@ test('transferencia recibida: reembolso no cuenta como ingreso', () => {
   // glosa que esa persona escribió: los dos son datos de un tercero.
   const texto = e.ultimoTexto();
   assert.match(texto, /\$185\.000/);
-  assert.equal(texto.includes('Jessica'), false, 'no se nombra a quien envía');
+  assert.equal(texto.includes('Nombre'), false, 'no se nombra a quien envía');
   assert.equal(texto.includes('Maleta y taxi'), false, 'no se muestra su glosa');
   assert.equal(texto.includes('11111111-1'), false, 'no se filtra el RUT al chat');
 
@@ -129,7 +129,7 @@ test('transferencia recibida: reembolso no cuenta como ingreso', () => {
 test('transferencia marcada como ingreso pregunta con el árbol de ingresos', () => {
   const e = crearEntorno();
   entra(e, 'Aviso de transferencia de fondos',
-    'nuestro(a) cliente Ana Perez ha efectuado una transferencia de fondos a tu cuenta ' +
+    'nuestro(a) cliente Nombre Apellido ha efectuado una transferencia de fondos a tu cuenta ' +
     'con el siguiente detalle: Datos de cuenta Fecha Asunto 01/08/2026 Pago clase ' +
     'Datos de destinatario Monto $50.000');
 

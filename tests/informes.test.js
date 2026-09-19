@@ -41,7 +41,7 @@ test('solo cuentan los gastos, no los otros movimientos', () => {
   const r = e.contexto.calcularResumen([
     gasto('JUMBO', 10000, hoy()),
     gasto('Pago tarjeta', 142403, hoy(), '⛔ Balance (NO CONSIDERAR)', { tipo: 'interno' }),
-    gasto('Jessica', 185000, hoy(), '', { tipo: 'reembolso' }),
+    gasto('Transferencia recibida', 185000, hoy(), '', { tipo: 'reembolso' }),
     gasto('Sueldo', 900000, hoy(), '💼 Trabajo', { tipo: 'ingreso' }),
   ], haceDias(6), hoy());
 
