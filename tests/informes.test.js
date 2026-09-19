@@ -352,3 +352,26 @@ test('con muchos gastos el detalle se corta y dice cuántos faltan', () => {
   assert.match(texto, /… y 15 más/);
   assert.ok(texto.length < 4096, `el mensaje mide ${texto.length}`);
 });
+
+// El latido avisa cuando algo se rompe, pero no puede avisar de su propia
+// muerte: es un activador más. El informe semanal sale todos los domingos aunque
+// la semana venga en cero, así que su ausencia sí significa algo. Y solo
+// significa algo si el mensaje dice que debía llegar.
+test('el informe semanal automático llega aunque no haya ningún gasto', () => {
+  const e = crearEntorno();
+
+  e.contexto.informeSemanalAutomatico();
+
+  assert.match(e.ultimoTexto(), /Últimos 7 días/);
+  assert.match(e.ultimoTexto(), /Si algún domingo no llego/);
+});
+
+// En /semana el pie sobra: el usuario acaba de pedirlo, ya sabe que está vivo.
+test('el informe pedido a mano no lleva el aviso de prueba de vida', () => {
+  const e = crearEntorno();
+
+  e.contexto.manejarTexto('/semana');
+
+  assert.match(e.ultimoTexto(), /Últimos 7 días/);
+  assert.equal(/Si algún domingo no llego/.test(e.ultimoTexto()), false);
+});

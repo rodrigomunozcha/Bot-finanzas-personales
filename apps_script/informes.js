@@ -262,12 +262,15 @@ function detallePorDia(gastos) {
 
 // --- Puntos de entrada -----------------------------------------------------
 
-function informeSemana() {
+function informeSemana(automatico) {
   var movimientos = todosLosMovimientos();
   var resumen = calcularResumen(movimientos, haceDias(6), diaDe(new Date()));
   var previo = calcularResumen(movimientos, haceDias(13), haceDias(7));
 
-  tgEnviar(redactarInforme('Últimos 7 días', resumen, previo));
+  // El pie solo va en el automatico. En /semana sobra: el usuario acaba de
+  // pedirlo, ya sabe que el bot esta vivo.
+  tgEnviar(redactarInforme('Últimos 7 días', resumen, previo) +
+    (automatico ? PIE_PRUEBA_DE_VIDA : ''));
   if (!resumen.cuenta) return;
 
   enviarGraficos([
@@ -308,8 +311,28 @@ function informeMes() {
 }
 
 /** Lo dispara el activador los domingos por la tarde. */
+/**
+ * El informe semanal es ademas la prueba de vida del sistema.
+ *
+ * El latido diario avisa cuando algo se rompe, pero no puede avisar de su
+ * propia muerte: es un activador mas, y si Google los desactiva, se apaga con
+ * todo lo demas. Entonces dejan de llegar mensajes, que se ve exactamente igual
+ * que una racha sin compras.
+ *
+ * Este informe sale todos los domingos aunque la semana venga en cero, asi que
+ * su ausencia si significa algo. Pero solo significa algo si quien lo recibe
+ * sabe que debia llegar, y por eso lo dice en el propio mensaje.
+ *
+ * No es un vigilante de verdad: si el activador muere un lunes, el aviso tarda
+ * hasta seis dias. Un vigilante real vive fuera del sistema que vigila, y eso
+ * pedia un servicio externo. Esto es lo que se puede hacer sin agregar nada.
+ */
+var PIE_PRUEBA_DE_VIDA =
+  '\n\n<i>Llego solo cada domingo. Si algún domingo no llego, algo se rompió: ' +
+  'escríbeme /saldo para comprobarlo.</i>';
+
 function informeSemanalAutomatico() {
-  informeSemana();
+  informeSemana(true);
 }
 
 /**

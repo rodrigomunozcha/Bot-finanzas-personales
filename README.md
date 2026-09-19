@@ -109,6 +109,15 @@ ejecución que Google regala.
 toda la demora que se siente en el teléfono. Hay pruebas que fijan el techo:
 2 lecturas y 1 escritura por gasto entrante, 3 y 2 por pulsación de botón.
 
+**El informe semanal es además la prueba de vida.** El latido diario avisa
+cuando algo se rompe, pero no puede avisar de su propia muerte: es un activador
+más, y si Google los desactiva se apaga con todo lo demás. Entonces dejan de
+llegar mensajes, que se ve exactamente igual que una racha sin compras. El
+informe del domingo sale aunque la semana venga en cero, y lo dice en el propio
+mensaje, así que su ausencia significa algo. No es un vigilante de verdad: si
+el activador muere un lunes, el aviso tarda hasta seis días. Un vigilante real
+vive fuera del sistema que vigila, y eso pedía un servicio externo.
+
 **Hay un tope de 25 mensajes nuevos por hora.** Al superarlo el bot avisa una
 vez y se calla hasta que pase la hora o hasta que se le escriba `/reanudar`.
 Existe porque ninguna cantidad de pruebas garantiza que no aparezca otro error
@@ -205,6 +214,7 @@ acotada a esa sola carpeta. Un permiso de ese tamaño para leer un archivo de
 - [x] Copia en el Mac en un comando, sin permisos especiales de macOS
 - [x] Latido diario: avisa solo cuando hay algo que arreglar
 - [x] Informes de semana y mes, con detalle gasto por gasto
+- [x] Prueba de vida: el informe del domingo llega aunque no haya gastos
 - [x] Entrada manual: gastos, efectivo, giros e ingresos
 - [x] Saldo de la cuenta corriente
 - [x] Añadir categoría o subcategoría desde el bot, sin tocar el código
@@ -234,3 +244,8 @@ el seguimiento semanal.
 Se agregan a medida que aparezca un ejemplo real de cada uno:
 
 - Anulación o reverso de una compra
+
+## Licencia
+
+MIT. Úsalo, cópialo y modifícalo como quieras. Sin garantía de ninguna clase:
+lee tus propios números antes de confiar en ellos.
