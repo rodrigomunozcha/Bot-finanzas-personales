@@ -5,11 +5,11 @@
  *
  * Ya pasó tres veces. La última fue así: el lector de transferencias enviadas
  * tomaba el campo "Mensaje" del correo y lo usaba como nombre de comercio. En
- * un correo real ese mensaje era la dirección de una vivienda,
- * escrita para que quien recibía el pago supiera quién le había pagado. Esa dirección
- * iba a quedar en la hoja de movimientos, en la tabla de aprendizaje, en el
- * mensaje de Telegram y en el respaldo local, y ninguna de las 169 pruebas que
- * había en ese momento se habría dado cuenta.
+ * un correo real ese mensaje era la dirección de una vivienda, escrita para
+ * que quien recibía el pago supiera quién le había pagado. Esa dirección iba a
+ * quedar en la hoja de movimientos, en la tabla de aprendizaje, en el mensaje
+ * de Telegram y en el respaldo local, y ninguna de las 169 pruebas que había en
+ * ese momento se habría dado cuenta.
  *
  * El intento anterior de resolverlo fue una lista negra: una función que
  * tachaba lo que parecía sensible con expresiones regulares. No sirve. Un RUT

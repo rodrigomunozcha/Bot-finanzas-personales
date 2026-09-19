@@ -22,7 +22,7 @@ function entra(e, correoId = 'm' + Math.random()) {
 test('la fecha se formatea igual venga como texto o como objeto Date', () => {
   const esperado = 'sáb 1 ago 13:20';
   assert.equal(tg.formatearFecha('2026-08-01T13:20'), esperado);
-  assert.equal(tg.formatearFecha(new Date(2026, 7, 1, 14, 1)), esperado);
+  assert.equal(tg.formatearFecha(new Date(2026, 7, 1, 13, 20)), esperado);
 });
 
 test('una fecha sin hora no inventa las 00:00', () => {
@@ -199,8 +199,8 @@ test('la fecha se guarda en la hoja como fecha, no como texto', () => {
   const guardada = fila[encabezados.indexOf('fechaHora')];
 
   assert.ok(guardada instanceof Date, `quedó como ${typeof guardada}: ${guardada}`);
-  assert.equal(guardada.getHours(), 14);
-  assert.equal(guardada.getMinutes(), 1);
+  assert.equal(guardada.getHours(), 13);
+  assert.equal(guardada.getMinutes(), 20);
 });
 
 test('un gasto escrito a mano también guarda fecha de verdad', () => {

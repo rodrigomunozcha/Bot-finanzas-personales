@@ -144,8 +144,7 @@
     { "patron": "ANTARTICA",        "categoria": "📙 Educación y crecimiento", "subcategoria": "📚 Libros" },
     { "patron": "FERIA CHILENA DEL LIBRO", "categoria": "📙 Educación y crecimiento", "subcategoria": "📚 Libros" },
     { "patron": "CONTRAPUNTO",      "categoria": "📙 Educación y crecimiento", "subcategoria": "📚 Libros" },
-    { "patron": "UNIVERSIDAD",     "categoria": "📙 Educación y crecimiento", "subcategoria": "🎓 Universidad" },
-    { "patron": "UNIVERSIDAD","categoria": "📙 Educación y crecimiento", "subcategoria": "🎓 Universidad" },
+    { "patron": "UNIVERSIDAD",      "categoria": "📙 Educación y crecimiento", "subcategoria": "🎓 Universidad" },
     { "patron": "UDEMY",            "categoria": "📙 Educación y crecimiento", "subcategoria": "💻 Curso online" },
     { "patron": "COURSERA",         "categoria": "📙 Educación y crecimiento", "subcategoria": "💻 Curso online" },
     { "patron": "PLATZI",           "categoria": "📙 Educación y crecimiento", "subcategoria": "💻 Curso online" }

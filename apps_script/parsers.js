@@ -373,10 +373,11 @@ function leerTransferenciaRecibida(asunto, cuerpo) {
  * texto que tu escribes para que la OTRA persona sepa quien le pago, asi que
  * ahi cabe cualquier cosa: una direccion ("Depto 000 calle tal"), el nombre del
  * destinatario, un numero de telefono, el detalle de un tratamiento medico. Un
- * caso real de este proyecto fue una transferencia cuyo mensaje era la
- * dirección de una vivienda. Como comercio, esa direccion habria terminado en
- * la hoja de movimientos, en la tabla de aprendizaje, en el mensaje de Telegram
- * y en el respaldo local.
+ * caso real fue una transferencia cuyo mensaje era la direccion de una
+ * vivienda, escrita para que quien recibia el pago supiera quien le habia
+ * pagado. Como comercio, esa direccion habria terminado en la hoja de
+ * movimientos, en la tabla de aprendizaje, en el mensaje de Telegram y en el
+ * respaldo local.
  *
  * No hay validacion que arregle eso. Es texto libre destinado a un tercero, y
  * lo unico seguro con texto libre de terceros es no leerlo.
@@ -384,7 +385,7 @@ function leerTransferenciaRecibida(asunto, cuerpo) {
 
 /**
  * El banco escribe esta fecha de dos formas distintas segun el correo, y las
- * dos son reales: se vieron el mismo dia en dos transferencias de verdad.
+ * dos son reales: las dos se vieron en transferencias de verdad.
  *
  *   "martes 11 de agosto de 2026 17:08"              (sin coma, 24 horas)
  *   "Sábado, 15 de agosto de 2026, 9:33 a. m."        (con coma, 12 horas)

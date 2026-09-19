@@ -22,7 +22,7 @@ test('comercio de la semilla: propone y se confirma de un toque', () => {
   entra(e, COMPRA.asunto, COMPRA.cuerpo);
 
   assert.match(e.ultimoTexto(), /JUMBO CENTRAL/);
-  assert.match(e.ultimoTexto(), /\$11\.680/);
+  assert.match(e.ultimoTexto(), /\$12\.500/);
   assert.match(e.ultimoTexto(), /🍴 Alimentación › 🛒 Supermercado\?/);
 
   e.apretar('Sí, guardar así');

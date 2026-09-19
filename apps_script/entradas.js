@@ -216,6 +216,7 @@ function mostrarDatos() {
     '',
     '<b>Si además quieres la copia en el Mac</b>',
     'Es opcional, y sirve para analizar los datos en SQLite. Un solo comando:',
+    'Desde la carpeta donde tengas el proyecto, en tu computador:',
     '<code>bash herramientas/copia_local.sh</code>',
     'Eso deja los datos en <code>datos/finanzas.db</code> (base SQLite, para',
     'análisis) y en <code>datos/movimientos.csv</code> (se abre en Excel).',
@@ -351,8 +352,8 @@ function explicarIngreso() {
  *
  * La transferencia que envias se agrego despues del lector de transferencias
  * enviadas, y quedo afuera la primera vez: solo se restaba el debito, y una
- * transferencia enviada de verdad no se conto en su saldo hasta que el mismo
- * lo noto pidiendo /saldo y viendo el numero mal. Las dos salen de la cuenta
+ * transferencia enviada de verdad no se contaba en el saldo, hasta que se
+ * noto pidiendo /saldo y viendo el numero mal. Las dos salen de la cuenta
  * en el momento, asi que las dos restan igual.
  */
 function calcularSaldo() {

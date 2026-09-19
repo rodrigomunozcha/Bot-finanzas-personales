@@ -1,6 +1,24 @@
-# Finanzas
+# Bot finanzas personales
 
-Clasificación de gastos por Telegram, a partir de los correos de Banco de Chile.
+Clasificación de gastos por Telegram, a partir de los correos de tu banco.
+
+> ## ⚠️ Solo funciona con Banco de Chile
+>
+> **Este bot lee los correos de aviso de Banco de Chile y solo entiende su
+> redacción exacta.** Con otro banco no va a reconocer ni un movimiento: los
+> correos van a quedar todos en la bandeja de no entendidos y el bot no te va a
+> escribir nunca.
+>
+> No es un defecto que se arregle con configuración. Cada banco escribe sus
+> avisos distinto, así que adaptarlo significa escribir lectores nuevos en
+> `apps_script/parsers.js`, con un ejemplo real de cada formato a la vista. Se
+> puede hacer y el código está preparado para eso, pero es trabajo de
+> programación, no un ajuste.
+
+**Todos los comandos de este README y de la guía de instalación se corren desde
+la carpeta del proyecto**, la que queda al clonar este repositorio, donde sea que
+la hayas puesto. Entra a ella con `cd` una vez y desde ahí los comandos funcionan
+tal cual están escritos.
 
 Cada vez que llega un aviso de compra, el sistema lo lee, pregunta por Telegram a
 qué categoría corresponde, y guarda la respuesta. Con el tiempo aprende de los
@@ -104,7 +122,7 @@ no genera notificación.
 apps_script/    código que corre en Google
   parsers.js    lectura de correos (lógica pura, sin APIs de Google)
 datos/
-  categorias_gasto.json      12 categorías, 39 subcategorías (de Money Manager)
+  categorias_gasto.json      12 categorías, 38 subcategorías
   categorias_ingreso.json    propuesta nueva para Chile
   comercios_semilla.json     clasificación inicial por comercio
 herramientas/   utilidades locales de un solo uso

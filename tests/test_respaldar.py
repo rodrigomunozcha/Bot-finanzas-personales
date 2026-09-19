@@ -127,7 +127,7 @@ class RespaldoTest(unittest.TestCase):
             return con.execute(sql, args).fetchall()
 
     def test_importa_y_convierte_la_fecha(self):
-        cuando = datetime.datetime(2026, 8, 1, 14, 1)
+        cuando = datetime.datetime(2026, 8, 1, 13, 20)
         self.assertEqual(self.importar([movimiento("a1", "JUMBO", 12500, cuando)]), 0)
 
         filas = self.consultar("SELECT fecha_hora, comercio, monto FROM movimientos")
@@ -140,13 +140,13 @@ class RespaldoTest(unittest.TestCase):
         self.assertEqual(filas[0], ("CAFETERÍA ALTURA", "🍴 Alimentación"))
 
     def test_reimportar_no_duplica(self):
-        mov = [movimiento("a1", "JUMBO", 12500, datetime.datetime(2026, 8, 1, 14, 1))]
+        mov = [movimiento("a1", "JUMBO", 12500, datetime.datetime(2026, 8, 1, 13, 20))]
         self.importar(mov)
         self.importar(mov)
         self.assertEqual(self.consultar("SELECT COUNT(*) FROM movimientos")[0][0], 1)
 
     def test_una_correccion_en_la_hoja_se_refleja(self):
-        cuando = datetime.datetime(2026, 8, 1, 14, 1)
+        cuando = datetime.datetime(2026, 8, 1, 13, 20)
         self.importar([movimiento("a1", "JUMBO", 12500, cuando, categoria="🎁 Regalos")])
         self.importar([movimiento("a1", "JUMBO", 12500, cuando, categoria="🍴 Alimentación")])
 
@@ -156,7 +156,7 @@ class RespaldoTest(unittest.TestCase):
     # Esta es la razon de ser del respaldo: si la hoja se corrompe o alguien
     # borra filas por accidente, la base local tiene que conservarlas.
     def test_lo_que_desaparece_de_la_hoja_no_se_borra(self):
-        cuando = datetime.datetime(2026, 8, 1, 14, 1)
+        cuando = datetime.datetime(2026, 8, 1, 13, 20)
         self.importar([
             movimiento("a1", "JUMBO", 12500, cuando),
             movimiento("a2", "COPEC", 30000, cuando),
@@ -167,7 +167,7 @@ class RespaldoTest(unittest.TestCase):
         self.assertEqual(ids, ["a1", "a2"])
 
     def test_cuenta_los_gastos_sin_clasificar(self):
-        cuando = datetime.datetime(2026, 8, 1, 14, 1)
+        cuando = datetime.datetime(2026, 8, 1, 13, 20)
         self.importar([
             movimiento("a1", "JUMBO", 12500, cuando),
             movimiento("a2", "DESCONOCIDO", 5000, cuando, estado="esperando_categoria"),

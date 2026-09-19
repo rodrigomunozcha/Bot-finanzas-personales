@@ -86,8 +86,8 @@ test('una compra con débito descuenta de la cuenta', () => {
 });
 
 // La primera versión de calcularSaldo solo restaba el débito, y una
-// transferencia enviada de verdad no se contaba: /saldo daba un número
-// mayor al real hasta que se corregía a mano. Sale de la cuenta al instante,
+// transferencia enviada de verdad no se contaba: /saldo daba un número mayor
+// al real hasta que se corregía a mano. Sale de la cuenta al instante,
 // igual que el débito.
 test('una transferencia enviada descuenta de la cuenta, igual que el débito', () => {
   const e = conSaldo(1000000);

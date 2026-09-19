@@ -1,13 +1,9 @@
 # Bot de finanzas - reglas de este repositorio
 
-**Este archivo aplica solo a `la carpeta del proyecto` y a nada más.** No
-es una guía transversal ni vale para los otros proyectos del usuario. El orquestador
-de estudio tiene su propio `CLAUDE.md` en `otra carpeta`,
-que es una carpeta hermana de esta: ninguna está dentro de la otra, así que los dos
-archivos nunca se cargan juntos ni se pisan.
-
-Las reglas que valen en cualquier carpeta (español neutro, nunca borrar archivos, datos
-personales nunca, costo cero) están en `~/.claude/CLAUDE.md`, que se carga siempre.
+**Este archivo aplica solo a este repositorio y a nada más.** No es una guía
+transversal ni vale para los otros proyectos de quien lo mantiene. Las reglas que
+valen en cualquier carpeta de su equipo viven en su `~/.claude/CLAUDE.md`, que se
+carga siempre y no se versiona acá.
 
 Clasifica gastos por Telegram leyendo los correos de Banco de Chile. El README
 explica qué hace y cómo se instala. Este archivo dice cómo se trabaja sobre él.
@@ -46,11 +42,11 @@ de correo de una persona y le lee la plata. Si filtra un dato, no sirve, por bie
 que funcione todo lo demás.
 
 Ya falló tres veces, y la tercera fue así: el lector de transferencias enviadas
-tomaba el campo "Mensaje" del correo y lo usaba como nombre de comercio. En el
-correo real ese mensaje era la dirección de una vivienda, escrita
-para que quien recibía el pago supiera quién le había pagado. Esa dirección iba a quedar en
-la hoja de movimientos, en la tabla de aprendizaje, en el mensaje de Telegram y
-en el respaldo local. Las 169 pruebas que existían pasaban.
+tomaba el campo "Mensaje" del correo y lo usaba como nombre de comercio. En un
+correo real ese mensaje era la dirección de una vivienda, escrita para que
+quien recibía el pago supiera quién le había pagado. Esa dirección iba a quedar
+en la hoja de movimientos, en la tabla de aprendizaje, en el mensaje de Telegram
+y en el respaldo local. Las 169 pruebas que existían pasaban.
 
 ### Por qué tachar no sirve
 

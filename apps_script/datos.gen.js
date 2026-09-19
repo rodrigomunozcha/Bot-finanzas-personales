@@ -72,7 +72,6 @@ var CATEGORIAS_GASTO = [
     "subcategorias": [
       "📚 Libros",
       "💻 Curso online",
-      "🎓 Universidad",
       "🎓 Universidad"
     ]
   },
@@ -715,11 +714,6 @@ var COMERCIOS_SEMILLA = [
     "patron": "CONTRAPUNTO",
     "categoria": "📙 Educación y crecimiento",
     "subcategoria": "📚 Libros"
-  },
-  {
-    "patron": "UNIVERSIDAD",
-    "categoria": "📙 Educación y crecimiento",
-    "subcategoria": "🎓 Universidad"
   },
   {
     "patron": "UNIVERSIDAD",

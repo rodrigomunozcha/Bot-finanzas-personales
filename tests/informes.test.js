@@ -314,7 +314,7 @@ test('el informe lista los gastos uno por uno, agrupados por día', () => {
   const texto = e.contexto.redactarInforme('Últimos 7 días', r, null);
 
   assert.match(texto, /<b>Detalle<\/b>/);
-  assert.match(texto, /\$11\.680  JUMBO CENTRAL/);
+  assert.match(texto, /\$12\.500  JUMBO CENTRAL/);
   assert.match(texto, /\$30\.000  COPEC/);
   assert.match(texto, /\$4\.350  CAFETERIA/);
   assert.match(texto, /🚖 Transporte/);

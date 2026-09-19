@@ -2,7 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert');
 const p = require('../apps_script/parsers.js');
 
-// Estructura del correo real, con todos los valores inventados.
+// Estructura del correo real. El monto, el comercio, los dígitos de la
+// cuenta y la hora son inventados: la forma del texto es lo único que estas
+// pruebas necesitan, y publicar una compra de verdad no aporta nada.
 const COMPRA_DEBITO = {
   asunto: 'Cargo en cuenta',
   cuerpo: 'Te informamos que se ha realizado una compra por $12.500 con cargo a ' +
@@ -215,8 +217,9 @@ test('transferencia enviada: monto, mensaje y fecha', () => {
 
 // Esta prueba existe por un error real de este proyecto. Una versión anterior
 // del lector tomaba el campo Mensaje y lo usaba como nombre de comercio, y en
-// un correo real ese mensaje era la dirección de una vivienda:
-// iba a escribirse en la hoja, en el aprendizaje, en Telegram y en el respaldo.
+// un correo real ese mensaje era la dirección de una vivienda, escrita
+// para que quien recibía el pago supiera quién le había pagado: iba a
+// escribirse en la hoja, en el aprendizaje, en Telegram y en el respaldo.
 // El mensaje es texto libre escrito para un tercero. No se lee, nunca.
 test('el mensaje de la transferencia no se lee jamás', () => {
   const conDireccion = TRANSFERENCIA_ENVIADA.cuerpo
@@ -290,7 +293,7 @@ martes 11 de agosto de 2026 17:08`;
 // --- Bug real: dos formatos de fecha, no uno --------------------------
 //
 // El banco manda la fecha de dos formas y las dos son reales: se vieron el
-// mismo mes en transferencias distintas del usuario.
+// mismo mes, en transferencias distintas.
 test('fecha sin coma y en 24 horas', () => {
   const cuerpo = 'Monto $8.950 Fecha y Hora: martes 11 de agosto de 2026 17:08';
   const r = p.leerCorreo('Transferencia a Terceros', cuerpo);
